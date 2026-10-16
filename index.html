@@ -44,12 +44,12 @@
         <div class="w-16 h-16 bg-brand-500/10 text-brand-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl font-bold border border-brand-500/20 shadow-inner">
           <i class="fa-solid fa-vault"></i>
         </div>
-        <h1 class="text-2xl font-bold text-white tracking-wide">Mi Bóveda Personal</h1>
-        <p id="authSubtitle" class="text-xs text-slate-400 mt-1">Inicia sesión con tu contraseña</p>
+        <h1 class="text-2xl font-bold text-white tracking-wide">Mi Bóveda</h1>
+        <p id="authSubtitle" class="text-xs text-slate-400 mt-1"></p>
       </div>
       <form id="loginForm" onsubmit="handleLogin(event)" class="w-full space-y-4">
         <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Contraseña de acceso (10 caracteres)</label>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Ingrese Su Contraseña</label>
           <div class="relative">
             <i class="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
             <input type="password" id="passwordInput" required maxlength="10" placeholder="••••••••••" class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none transition-all text-sm tracking-widest">
@@ -64,21 +64,21 @@
       </form>
       <form id="registerForm" onsubmit="saveNewUser(event)" class="w-full space-y-3 hidden">
         <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Pregunta de Seguridad 1</label>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1"></label>
           <p class="text-xs text-slate-300 mb-1 italic">Nombre de tu primera mascota</p>
           <input type="text" id="secAnswerReg1" required placeholder="Tu respuesta 1" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs">
         </div>
         <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Pregunta de Seguridad 2</label>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1"></label>
           <p class="text-xs text-slate-300 mb-1 italic">Tu color favorito</p>
           <input type="text" id="secAnswerReg2" required placeholder="Tu respuesta 2" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs">
         </div>
         <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Nueva Contraseña (10 caracteres)</label>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Nueva Contraseña</label>
           <input type="password" id="newPasswordReg" required minlength="10" maxlength="10" placeholder="10 caracteres" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs tracking-widest">
         </div>
         <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Repite tu contraseña</label>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Repita contraseña</label>
           <input type="password" id="confirmPasswordReg" required minlength="10" maxlength="10" placeholder="10 caracteres" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs tracking-widest">
         </div>
         <div id="registerErrorMsg" class="text-xs text-red-400 font-medium text-center hidden"></div>
@@ -94,25 +94,25 @@
     <div class="glass w-full max-w-md p-8 rounded-2xl shadow-2xl border border-slate-800 relative space-y-3" onclick="event.stopPropagation()">
       <div class="text-center">
         <h3 class="text-xl font-bold text-white">Cambiar Contraseña</h3>
-        <p class="text-xs text-slate-400 mt-1">Responde tus preguntas de seguridad para validar identidad</p>
+        <p class="text-xs text-slate-400 mt-1">Preguntas de validacion no biometricas</p>
       </div>
       <form onsubmit="verifyAndResetPassword(event)" class="space-y-3">
         <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Pregunta de Seguridad 1</label>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1"></label>
           <p class="text-xs text-slate-300 mb-1 italic">Nombre de tu primera mascota</p>
           <input type="text" id="secAnswerRec1" required placeholder="Tu respuesta 1" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs">
         </div>
         <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Pregunta de Seguridad 2</label>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1"></label>
           <p class="text-xs text-slate-300 mb-1 italic">Tu color favorito</p>
           <input type="text" id="secAnswerRec2" required placeholder="Tu respuesta 2" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs">
         </div>
         <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Nueva Contraseña (10 caracteres)</label>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Nueva Contraseña</label>
           <input type="password" id="newPasswordRec" required minlength="10" maxlength="10" placeholder="10 caracteres" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs tracking-widest">
         </div>
         <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Repite tu contraseña</label>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Repita contraseña</label>
           <input type="password" id="confirmPasswordRec" required minlength="10" maxlength="10" placeholder="10 caracteres" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs tracking-widest">
         </div>
         <div id="recoveryErrorMsg" class="text-xs text-red-400 font-medium text-center hidden"></div>
@@ -140,7 +140,7 @@
         <button onclick="toggleChatDrawer(event)" class="w-10 h-10 bg-brand-600 hover:bg-brand-700 text-white rounded-xl flex items-center justify-center font-bold transition shadow-md focus:outline-none" title="Chats y Contactos"><i class="fa-solid fa-comments"></i></button>
         <button onclick="toggleTrashDrawer(event)" class="w-10 h-10 bg-brand-600 hover:bg-brand-700 text-white rounded-xl flex items-center justify-center font-bold transition shadow-md focus:outline-none" title="Tacho"><i class="fa-solid fa-trash-can"></i></button>
         <div>
-          <h1 class="font-bold text-white leading-tight">Mi Bóveda Personal</h1>
+          <h1 class="font-bold text-white leading-tight">Mi Bóveda</h1>
           <span class="text-xs text-slate-400">Sesión Segura</span>
         </div>
       </div>
@@ -151,7 +151,7 @@
 
     <div id="chatDrawer" class="fixed inset-y-0 left-0 z-50 w-full sm:w-1/2 bg-slate-900 border-r border-slate-800 shadow-2xl flex flex-col -translate-x-full" onclick="event.stopPropagation()">
       <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
-        <h3 class="font-bold text-white flex items-center gap-2"><i class="fa-solid fa-comments text-brand-500"></i> Chat y Contactos</h3>
+        <h3 class="font-bold text-white flex items-center gap-2"><i class="fa-solid fa-comments text-brand-500"></i> Chats y Contactos</h3>
         <button onclick="toggleChatDrawer(event)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="flex-1 p-6 flex items-center justify-center text-center">
@@ -175,7 +175,7 @@
         <div id="trashConfirmBox" class="hidden bg-slate-950 border border-red-500/40 p-3 rounded-xl space-y-2 mt-2">
           <div class="flex items-center gap-2 text-xs text-red-400 font-medium">
             <i class="fa-solid fa-triangle-exclamation"></i>
-            <span>¿Vaciar tacho y borrar todo definitivamente?</span>
+            <span>¿Vaciar y borrar definitivamente?</span>
           </div>
           <div class="flex gap-2">
             <button onclick="hideTrashConfirm()" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[11px] font-medium transition">Cancelar</button>
