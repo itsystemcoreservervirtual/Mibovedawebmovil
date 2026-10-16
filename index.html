@@ -11,8 +11,6 @@
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <!-- Supabase JS Client -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = { darkMode: 'class', theme: { extend: { colors: { brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1' } } } } }
   </script>
@@ -351,17 +349,6 @@
   </div>
 
   <script>
-    // Configuración de Supabase
-    const SUPABASE_URL = 'https://ifqgwhmccbixkrzlbywi.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_5Q7GmKHcOH0lCYsKzNXbfg_pES1SWHB';
-    
-    let supabaseClient = null;
-    try {
-      if (typeof supabase !== 'undefined') {
-        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      }
-    } catch(e) {}
-
     let db, notes = JSON.parse(localStorage.getItem('user_notes') || '[]'), photos = [], videos = [], audios = [];
     let trashNotes = JSON.parse(localStorage.getItem('trash_notes') || '[]'), trashPhotos = JSON.parse(localStorage.getItem('trash_photos') || '[]'), trashVideos = JSON.parse(localStorage.getItem('trash_videos') || '[]'), trashAudios = JSON.parse(localStorage.getItem('trash_audios') || '[]');
     let currentEditingId = null, loginAttempts = 3;
@@ -381,29 +368,7 @@
     requestDB.onsuccess = (e) => { db = e.target.result; loadAllMediaFromDB(); };
     requestDB.onerror = () => { renderPhotos(); renderVideos(); renderAudios(); };
 
-    async function loadAllMediaFromDB() {
-      // Sincronización asíncrona con Supabase en segundo plano para no congelar botones
-      if (supabaseClient) {
-        setTimeout(async () => {
-          try {
-            const resNotes = await supabaseClient.from('boveda_notes').select('*').order('id', { ascending: false });
-            if (resNotes.data && resNotes.data.length > 0) {
-              notes = resNotes.data;
-              localStorage.setItem('user_notes', JSON.stringify(notes));
-              renderNotes();
-            }
-            const resMedia = await supabaseClient.from('boveda_media').select('*').order('id', { ascending: false });
-            if (resMedia.data && resMedia.data.length > 0) {
-              photos = resMedia.data.filter(m => m.type === 'photo').map(p => ({ id: p.id, src: p.data_url, date: p.date }));
-              videos = resMedia.data.filter(m => m.type === 'video').map(v => ({ id: v.id, src: v.data_url, date: v.date }));
-              audios = resMedia.data.filter(m => m.type === 'audio').map(a => ({ id: a.id, src: a.data_url, date: a.date }));
-              renderPhotos(); renderVideos(); renderAudios();
-              return;
-            }
-          } catch(err) {}
-        }, 50);
-      }
-
+    function loadAllMediaFromDB() {
       loadStoreData('photos', (items) => { photos = items; renderPhotos(); });
       loadStoreData('videos', (items) => { 
         videos = items.map(v => ({ ...v, src: v.blob ? URL.createObjectURL(v.blob) : v.src })); 
@@ -417,7 +382,6 @@
       loadStoreData('trash_videos', (items) => { trashVideos = items; });
       loadStoreData('trash_audios', (items) => { trashAudios = items; });
     }
-
     function loadStoreData(storeName, callback) {
       if (!db) { callback([]); return; }
       try {
@@ -454,23 +418,8 @@
     }
     function closeCustomAlert() { document.getElementById('customAlertModal').classList.remove('active'); }
 
-    window.addEventListener('DOMContentLoaded', async () => {
-      let hasPass = localStorage.getItem('user_password');
-      if (supabaseClient) {
-        setTimeout(async () => {
-          try {
-            const { data } = await supabaseClient.from('boveda_config').select('*').limit(1);
-            if (data && data.length > 0) {
-              hasPass = data[0].password_hash;
-              localStorage.setItem('user_password', hasPass);
-              localStorage.setItem('sec_answer_1', data[0].sec_answer_1);
-              localStorage.setItem('sec_answer_2', data[0].sec_answer_2);
-            }
-          } catch(e) {}
-        }, 10);
-      }
-
-      if (!hasPass) { document.getElementById('registerToggleBtn').classList.remove('hidden'); }
+    window.addEventListener('DOMContentLoaded', () => {
+      if (!localStorage.getItem('user_password')) { document.getElementById('registerToggleBtn').classList.remove('hidden'); }
       if (sessionStorage.getItem('user_session') === 'active') {
         renderNotes();
         renderPhotos();
@@ -491,22 +440,12 @@
       document.getElementById('authSubtitle').textContent = 'Inicia sesión con tu contraseña';
       document.getElementById('loginErrorMsg').classList.add('hidden');
     }
-    async function handleLogin(e) {
+    function handleLogin(e) {
       e.preventDefault();
       const inputPass = document.getElementById('passwordInput').value.trim();
-      let savedPass = localStorage.getItem('user_password');
+      const savedPass = localStorage.getItem('user_password');
       const errBox = document.getElementById('loginErrorMsg');
       
-      if (supabaseClient) {
-        try {
-          const { data } = await supabaseClient.from('boveda_config').select('*').limit(1);
-          if (data && data.length > 0) {
-            savedPass = data[0].password_hash;
-            localStorage.setItem('user_password', savedPass);
-          }
-        } catch(e) {}
-      }
-
       if (!savedPass) { 
         errBox.textContent = 'No hay contraseña registrada. Haz clic en "Soy usuario nuevo".'; 
         errBox.classList.remove('hidden'); 
@@ -517,7 +456,6 @@
         sessionStorage.setItem('user_session', 'active');
         document.getElementById('loginView').style.display = 'none';
         document.getElementById('appView').style.display = 'flex';
-        loadAllMediaFromDB();
         renderNotes();
         renderPhotos();
         renderVideos();
@@ -534,7 +472,7 @@
         }
       }
     }
-    async function saveNewUser(e) {
+    function saveNewUser(e) {
       e.preventDefault();
       const ans1 = document.getElementById('secAnswerReg1').value.trim();
       const ans2 = document.getElementById('secAnswerReg2').value.trim();
@@ -547,22 +485,13 @@
       localStorage.setItem('user_password', pass);
       localStorage.setItem('sec_answer_1', ans1);
       localStorage.setItem('sec_answer_2', ans2);
-
-      if (supabaseClient) {
-        setTimeout(async () => {
-          try {
-            await supabaseClient.from('boveda_config').insert([{ password_hash: pass, sec_answer_1: ans1, sec_answer_2: ans2 }]);
-          } catch(err) {}
-        }, 10);
-      }
-
       showCustomAlert('¡Contraseña creada con éxito!');
       switchToLogin();
       document.getElementById('registerToggleBtn').classList.add('hidden');
     }
     function openRecoveryModal() { document.getElementById('recoveryModal').classList.add('active'); }
     function closeRecoveryModal() { document.getElementById('recoveryModal').classList.remove('active'); }
-    async function verifyAndResetPassword(e) {
+    function verifyAndResetPassword(e) {
       e.preventDefault();
       const ansInput1 = document.getElementById('secAnswerRec1').value.trim();
       const ansInput2 = document.getElementById('secAnswerRec2').value.trim();
@@ -577,15 +506,6 @@
         if (newPass.length !== 10) { errBox.textContent = 'La nueva contraseña debe tener exactamente 10 caracteres.'; errBox.classList.add('hidden'); return; }
         errBox.classList.add('hidden');
         localStorage.setItem('user_password', newPass);
-        
-        if (supabaseClient) {
-          setTimeout(async () => {
-            try {
-              await supabaseClient.from('boveda_config').update({ password_hash: newPass }).eq('sec_answer_1', savedAns1);
-            } catch(e) {}
-          }, 10);
-        }
-
         showCustomAlert('¡Contraseña restablecida con éxito!');
         closeRecoveryModal();
         document.getElementById('passwordInput').value = '';
@@ -593,6 +513,7 @@
       } else { showCustomAlert('Una o ambas respuestas de seguridad son incorrectas.'); }
     }
     
+    // FUNCIÓN DE SALIDA CORREGIDA
     function handleLogout() {
       sessionStorage.removeItem('user_session');
       document.getElementById('appView').style.display = 'none';
@@ -628,18 +549,11 @@
     function saveQuickNote() {
       const text = document.getElementById('quickText').value.trim();
       if (!text) return;
-      const newNote = { id: Date.now(), content: text, date: getFormattedTimestamp() };
-      notes.unshift(newNote);
+      notes.unshift({ id: Date.now(), content: text, date: getFormattedTimestamp() });
       try {
         localStorage.setItem('user_notes', JSON.stringify(notes));
         document.getElementById('quickText').value = '';
         renderNotes();
-        // Supabase en segundo plano para respuesta inmediata del botón
-        if (supabaseClient) {
-          setTimeout(async () => {
-            try { await supabaseClient.from('boveda_notes').insert([newNote]); } catch(e) {}
-          }, 10);
-        }
       } catch (err) { showCustomAlert('Almacenamiento local lleno.'); notes.shift(); }
     }
     function clearQuickText() { document.getElementById('quickText').value = ''; }
@@ -650,11 +564,6 @@
       notes = notes.filter(n => n.id !== id);
       localStorage.setItem('user_notes', JSON.stringify(notes));
       renderNotes();
-      if (supabaseClient) {
-        setTimeout(async () => {
-          try { await supabaseClient.from('boveda_notes').delete().eq('id', id); } catch(e) {}
-        }, 10);
-      }
     }
     function copyToClipboard(text, event) {
       if (event) event.stopPropagation();
@@ -677,11 +586,6 @@
         localStorage.setItem('user_notes', JSON.stringify(notes));
         renderNotes();
         closeModal();
-        if (supabaseClient) {
-          setTimeout(async () => {
-            try { await supabaseClient.from('boveda_notes').update({ content: newText }).eq('id', currentEditingId); } catch(e) {}
-          }, 10);
-        }
       } catch (err) { showCustomAlert('Almacenamiento local lleno.'); }
     }
     function copyModalContent() {
@@ -712,11 +616,6 @@
       deleteFromDB('photos', id, () => {
         photos = photos.filter(p => p.id !== id);
         renderPhotos();
-        if (supabaseClient) {
-          setTimeout(async () => {
-            try { await supabaseClient.from('boveda_media').delete().eq('id', id); } catch(e) {}
-          }, 10);
-        }
       });
     }
     function deleteVideo(id, event) {
@@ -729,11 +628,6 @@
       deleteFromDB('videos', id, () => {
         videos = videos.filter(v => v.id !== id);
         renderVideos();
-        if (supabaseClient) {
-          setTimeout(async () => {
-            try { await supabaseClient.from('boveda_media').delete().eq('id', id); } catch(e) {}
-          }, 10);
-        }
       });
     }
     function renderTrashContent() {
@@ -847,15 +741,7 @@
       const ctx = canvas.getContext('2d'); ctx.drawImage(videoElem, 0, 0, canvas.width, canvas.height);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
       const newPhoto = { id: Date.now(), src: dataUrl, date: getFormattedTimestamp() };
-      saveToDB('photos', newPhoto, () => { 
-        photos.unshift(newPhoto); 
-        renderPhotos(); 
-        if (supabaseClient) {
-          setTimeout(async () => {
-            try { await supabaseClient.from('boveda_media').insert([{ id: newPhoto.id, type: 'photo', data_url: newPhoto.src, date: newPhoto.date }]); } catch(e) {}
-          }, 10);
-        }
-      });
+      saveToDB('photos', newPhoto, () => { photos.unshift(newPhoto); renderPhotos(); });
       closeWebcamModal();
     }
 
@@ -931,23 +817,13 @@
 
       videoRecorder.onstop = () => {
         const blob = new Blob(recordedVideoChunks, { type: videoRecorder.mimeType || 'video/webm' });
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const dataUrl = ev.target.result;
-          const objectUrl = URL.createObjectURL(blob);
-          const newItem = { id: Date.now(), blob: blob, date: getFormattedTimestamp() };
-          
-          saveToDB('videos', newItem, () => {
-            videos.unshift({ id: newItem.id, blob: blob, src: objectUrl, date: newItem.date });
-            renderVideos();
-            if (supabaseClient) {
-              setTimeout(async () => {
-                try { await supabaseClient.from('boveda_media').insert([{ id: newItem.id, type: 'video', data_url: dataUrl, date: newItem.date }]); } catch(e) {}
-              }, 10);
-            }
-          });
-        };
-        reader.readAsDataURL(blob);
+        const objectUrl = URL.createObjectURL(blob);
+        const newItem = { id: Date.now(), blob: blob, date: getFormattedTimestamp() };
+        
+        saveToDB('videos', newItem, () => {
+          videos.unshift({ id: newItem.id, blob: blob, src: objectUrl, date: newItem.date });
+          renderVideos();
+        });
       };
 
       videoRecorder.start();
@@ -965,36 +841,18 @@
       const reader = new FileReader();
       reader.onload = (event) => {
         const newPhoto = { id: Date.now(), src: event.target.result, date: getFormattedTimestamp() };
-        saveToDB('photos', newPhoto, () => { 
-          photos.unshift(newPhoto); 
-          renderPhotos(); 
-          if (supabaseClient) {
-            setTimeout(async () => {
-              try { await supabaseClient.from('boveda_media').insert([{ id: newPhoto.id, type: 'photo', data_url: newPhoto.src, date: newPhoto.date }]); } catch(e) {}
-            }, 10);
-          }
-        });
+        saveToDB('photos', newPhoto, () => { photos.unshift(newPhoto); renderPhotos(); });
       };
       reader.readAsDataURL(file); e.target.value = '';
     }
     function handleVideoUpload(e) {
       const file = e.target.files[0]; if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target.result;
-        const objectUrl = URL.createObjectURL(file);
-        const newItem = { id: Date.now(), blob: file, date: getFormattedTimestamp() };
-        saveToDB('videos', newItem, () => {
-          videos.unshift({ id: newItem.id, blob: file, src: objectUrl, date: newItem.date });
-          renderVideos();
-          if (supabaseClient) {
-            setTimeout(async () => {
-              try { await supabaseClient.from('boveda_media').insert([{ id: newItem.id, type: 'video', data_url: dataUrl, date: newItem.date }]); } catch(e) {}
-            }, 10);
-          }
-        });
-      };
-      reader.readAsDataURL(file);
+      const objectUrl = URL.createObjectURL(file);
+      const newItem = { id: Date.now(), blob: file, date: getFormattedTimestamp() };
+      saveToDB('videos', newItem, () => {
+        videos.unshift({ id: newItem.id, blob: file, src: objectUrl, date: newItem.date });
+        renderVideos();
+      });
       e.target.value = '';
     }
     function handleRightClick(e) {
@@ -1016,15 +874,7 @@
           const blob = item.getAsFile(), reader = new FileReader();
           reader.onload = (ev) => {
             const newPhoto = { id: Date.now(), src: ev.target.result, date: getFormattedTimestamp() };
-            saveToDB('photos', newPhoto, () => { 
-              photos.unshift(newPhoto); 
-              renderPhotos(); 
-              if (supabaseClient) {
-                setTimeout(async () => {
-                  try { await supabaseClient.from('boveda_media').insert([{ id: newPhoto.id, type: 'photo', data_url: newPhoto.src, date: newPhoto.date }]); } catch(e) {}
-                }, 10);
-              }
-            });
+            saveToDB('photos', newPhoto, () => { photos.unshift(newPhoto); renderPhotos(); });
           };
           reader.readAsDataURL(blob);
         }
@@ -1045,23 +895,13 @@
             audioStream.getTracks().forEach(track => track.stop());
 
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-              const dataUrl = ev.target.result;
-              const objectUrl = URL.createObjectURL(audioBlob);
-              const newItem = { id: Date.now(), blob: audioBlob, date: getFormattedTimestamp() };
-              
-              saveToDB('audios', newItem, () => {
-                audios.unshift({ id: newItem.id, blob: audioBlob, src: objectUrl, date: newItem.date });
-                renderAudios();
-                if (supabaseClient) {
-                  setTimeout(async () => {
-                    try { await supabaseClient.from('boveda_media').insert([{ id: newItem.id, type: 'audio', data_url: dataUrl, date: newItem.date }]); } catch(e) {}
-                  }, 10);
-                }
-              });
-            };
-            reader.readAsDataURL(audioBlob);
+            const objectUrl = URL.createObjectURL(audioBlob);
+            const newItem = { id: Date.now(), blob: audioBlob, date: getFormattedTimestamp() };
+            
+            saveToDB('audios', newItem, () => {
+              audios.unshift({ id: newItem.id, blob: audioBlob, src: objectUrl, date: newItem.date });
+              renderAudios();
+            });
           };
 
           mediaRecorder.start(); 
@@ -1086,15 +926,7 @@
     function deleteAudio(id) {
       const item = audios.find(a => a.id === id);
       if (item) { trashAudios.unshift(item); saveToDB('trash_audios', item); }
-      deleteFromDB('audios', id, () => { 
-        audios = audios.filter(a => a.id !== id); 
-        renderAudios(); 
-        if (supabaseClient) {
-          setTimeout(async () => {
-            try { await supabaseClient.from('boveda_media').delete().eq('id', id); } catch(e) {}
-          }, 10);
-        }
-      });
+      deleteFromDB('audios', id, () => { audios = audios.filter(a => a.id !== id); renderAudios(); });
     }
     function renderNotes() {
       const container = document.getElementById('notesContainer');
