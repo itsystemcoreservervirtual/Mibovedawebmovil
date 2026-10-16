@@ -3,14 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mi Panel Personal - Notas, Fotos, Videos y Audios</title>
+  <title>Mi Panel Personal - Sincronizado con Supabase</title>
   
-  <!-- Iconos para accesos directos y PWA -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%230ea5e9' d='M64 32C28.7 32 0 60.7 0 96L0 416c0 35.3 28.7 64 64 64l384 0c35.3 0 64-28.7 64-64l0-320c0-35.3-28.7-64-64-64L64 32zm224 160c8.8 0 16 7.2 16 16s-7.2 16-16 16l-96 0c-8.8 0-16-7.2-16-16s7.2-16 16-16l96 0zM192 288c-8.8 0-16 7.2-16 16s7.2 16 16 16l96 0c8.8 0 16-7.2 16-16s-7.2-16-16-16l-96 0z'/%3E%3C/svg%3E">
-  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230f172a'/%3E%3Cpath fill='%230ea5e9' d='M128 128C92.7 128 64 156.7 64 192l0 128c0 35.3 28.7 64 64 64l256 0c35.3 0 64-28.7 64-64l0-128c0-35.3-28.7-64-64-64L128 128zm192 80c17.7 0 32 14.3 32 32s-14.3 32-32 32l-96 0c-17.7 0-32-14.3-32-32s14.3-32 32-32l96 0zm-64 96c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0z'/%3E%3C/svg%3E">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <script>
     tailwind.config = { darkMode: 'class', theme: { extend: { colors: { brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1' } } } } }
   </script>
@@ -27,7 +28,6 @@
     #trashContent { overflow-y: auto; }
     #trashContent::-webkit-scrollbar { width: 8px; }
     #trashContent::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-    
     #loginView { display: flex; }
     #appView { display: none; }
   </style>
@@ -37,16 +37,18 @@
     }
   </script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col transition-colors duration-200" oncontextmenu="handleRightClick(event)">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col transition-colors duration-200">
+  
   <div id="loginView" class="min-h-screen items-center justify-center p-4">
     <div class="glass w-full max-w-md p-8 rounded-2xl shadow-2xl border border-slate-800 relative flex flex-col items-center">
       <div class="text-center mb-6">
         <div class="w-16 h-16 bg-brand-500/10 text-brand-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl font-bold border border-brand-500/20 shadow-inner">
           <i class="fa-solid fa-vault"></i>
         </div>
-        <h1 class="text-2xl font-bold text-white tracking-wide">Mi Bóveda Personal</h1>
-        <p id="authSubtitle" class="text-xs text-slate-400 mt-1">Inicia sesión con tu contraseña</p>
+        <h1 class="text-2xl font-bold text-white tracking-wide">Mi Bóveda en la Nube</h1>
+        <p id="authSubtitle" class="text-xs text-slate-400 mt-1">Inicia sesión con tu contraseña sincronizada</p>
       </div>
+      
       <form id="loginForm" onsubmit="handleLogin(event)" class="w-full space-y-4">
         <div>
           <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Contraseña de acceso (10 caracteres)</label>
@@ -57,24 +59,23 @@
         </div>
         <div id="loginErrorMsg" class="text-xs text-red-400 font-medium text-center hidden"></div>
         <button type="submit" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl shadow-lg shadow-brand-600/30 transition-all text-sm">Iniciar Sesión</button>
-        <button type="button" id="registerToggleBtn" onclick="switchToRegister()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl transition-all text-sm">Soy usuario nuevo</button>
+        <button type="button" id="registerToggleBtn" onclick="switchToRegister()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl transition-all text-sm hidden">Registrar Bóveda Nueva</button>
         <div class="flex flex-col items-center gap-2 pt-3 text-xs border-t border-slate-800/80">
-          <button type="button" onclick="openRecoveryModal()" class="text-slate-400 hover:text-slate-300 transition font-medium">¿Olvidaste tu contraseña? Cambiar contraseña</button>
+          <button type="button" onclick="openRecoveryModal()" class="text-slate-400 hover:text-slate-300 transition font-medium">¿Olvidaste tu contraseña?</button>
         </div>
       </form>
+
       <form id="registerForm" onsubmit="saveNewUser(event)" class="w-full space-y-3 hidden">
         <div>
           <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Pregunta de Seguridad 1</label>
-          <p class="text-xs text-slate-300 mb-1 italic">Nombre de tu primera mascota</p>
-          <input type="text" id="secAnswerReg1" required placeholder="Tu respuesta 1" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs">
+          <input type="text" id="secAnswerReg1" required placeholder="Nombre de tu primera mascota" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs">
         </div>
         <div>
           <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Pregunta de Seguridad 2</label>
-          <p class="text-xs text-slate-300 mb-1 italic">Tu color favorito</p>
-          <input type="text" id="secAnswerReg2" required placeholder="Tu respuesta 2" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs">
+          <input type="text" id="secAnswerReg2" required placeholder="Tu color favorito" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs">
         </div>
         <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Nueva Contraseña (10 caracteres)</label>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Contraseña (10 caracteres)</label>
           <input type="password" id="newPasswordReg" required minlength="10" maxlength="10" placeholder="10 caracteres" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs tracking-widest">
         </div>
         <div>
@@ -82,48 +83,15 @@
           <input type="password" id="confirmPasswordReg" required minlength="10" maxlength="10" placeholder="10 caracteres" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs tracking-widest">
         </div>
         <div id="registerErrorMsg" class="text-xs text-red-400 font-medium text-center hidden"></div>
-        <button type="submit" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl shadow-lg shadow-brand-600/30 transition-all text-sm">Crear Contraseña y Acceder</button>
+        <button type="submit" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl shadow-lg shadow-brand-600/30 transition-all text-sm">Guardar en Supabase</button>
         <div class="flex justify-center pt-2 border-t border-slate-800/80">
-          <button type="button" onclick="switchToLogin()" class="text-xs text-slate-400 hover:text-slate-300 transition font-medium">Ya tengo cuenta, Iniciar Sesión</button>
+          <button type="button" onclick="switchToLogin()" class="text-xs text-slate-400 hover:text-slate-300 transition font-medium">Volver al Login</button>
         </div>
       </form>
     </div>
   </div>
 
-  <div id="recoveryModal" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="glass w-full max-w-md p-8 rounded-2xl shadow-2xl border border-slate-800 relative space-y-3" onclick="event.stopPropagation()">
-      <div class="text-center">
-        <h3 class="text-xl font-bold text-white">Cambiar Contraseña</h3>
-        <p class="text-xs text-slate-400 mt-1">Responde tus preguntas de seguridad para validar identidad</p>
-      </div>
-      <form onsubmit="verifyAndResetPassword(event)" class="space-y-3">
-        <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Pregunta de Seguridad 1</label>
-          <p class="text-xs text-slate-300 mb-1 italic">Nombre de tu primera mascota</p>
-          <input type="text" id="secAnswerRec1" required placeholder="Tu respuesta 1" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Pregunta de Seguridad 2</label>
-          <p class="text-xs text-slate-300 mb-1 italic">Tu color favorito</p>
-          <input type="text" id="secAnswerRec2" required placeholder="Tu respuesta 2" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Nueva Contraseña (10 caracteres)</label>
-          <input type="password" id="newPasswordRec" required minlength="10" maxlength="10" placeholder="10 caracteres" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs tracking-widest">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Repite tu contraseña</label>
-          <input type="password" id="confirmPasswordRec" required minlength="10" maxlength="10" placeholder="10 caracteres" class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs tracking-widest">
-        </div>
-        <div id="recoveryErrorMsg" class="text-xs text-red-400 font-medium text-center hidden"></div>
-        <div class="flex gap-3 pt-2">
-          <button type="submit" class="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-xl text-xs transition shadow-md">Actualizar Contraseña</button>
-          <button type="button" onclick="closeRecoveryModal()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs transition">Cancelar</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
+  <!-- Alerta Personalizada -->
   <div id="customAlertModal" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
     <div class="glass w-full max-w-sm p-6 rounded-2xl shadow-2xl border border-slate-800 text-center space-y-4" onclick="event.stopPropagation()">
       <div class="w-12 h-12 bg-brand-500/10 text-brand-500 rounded-xl flex items-center justify-center mx-auto text-xl border border-brand-500/20">
@@ -137,825 +105,332 @@
   <div id="appView" class="min-h-screen flex-col relative overflow-x-hidden">
     <header class="sticky top-0 z-40 glass border-b border-slate-800 px-6 py-4 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <button onclick="toggleChatDrawer(event)" class="w-10 h-10 bg-brand-600 hover:bg-brand-700 text-white rounded-xl flex items-center justify-center font-bold transition shadow-md focus:outline-none" title="Chats y Contactos"><i class="fa-solid fa-comments"></i></button>
         <button onclick="toggleTrashDrawer(event)" class="w-10 h-10 bg-brand-600 hover:bg-brand-700 text-white rounded-xl flex items-center justify-center font-bold transition shadow-md focus:outline-none" title="Tacho"><i class="fa-solid fa-trash-can"></i></button>
         <div>
           <h1 class="font-bold text-white leading-tight">Mi Bóveda Personal</h1>
-          <span class="text-xs text-slate-400">Sesión Segura</span>
+          <span class="text-xs text-emerald-400"><i class="fa-solid fa-cloud"></i> Sincronizado con Supabase</span>
         </div>
       </div>
-      <div class="flex items-center gap-2">
-        <button type="button" onclick="handleLogout()" class="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl text-sm font-medium transition-all relative z-50 cursor-pointer"><i class="fa-solid fa-right-from-bracket mr-1"></i> Salir</button>
-      </div>
+      <button type="button" onclick="handleLogout()" class="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl text-sm font-medium transition-all"><i class="fa-solid fa-right-from-bracket mr-1"></i> Salir</button>
     </header>
 
-    <div id="chatDrawer" class="fixed inset-y-0 left-0 z-50 w-full sm:w-1/2 bg-slate-900 border-r border-slate-800 shadow-2xl flex flex-col -translate-x-full" onclick="event.stopPropagation()">
-      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
-        <h3 class="font-bold text-white flex items-center gap-2"><i class="fa-solid fa-comments text-brand-500"></i> Chat y Contactos</h3>
-        <button onclick="toggleChatDrawer(event)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="flex-1 p-6 flex items-center justify-center text-center">
-        <div class="bg-slate-800/40 p-8 rounded-2xl max-w-sm space-y-3 border border-slate-800 shadow-lg">
-          <div class="w-14 h-14 bg-brand-500/10 text-brand-500 rounded-2xl flex items-center justify-center mx-auto text-2xl"><i class="fa-solid fa-comments"></i></div>
-          <p class="text-sm font-semibold text-white">Pronto se habilitara un chat aqui</p>
-        </div>
-      </div>
-    </div>
-
+    <!-- Tacho Lateral -->
     <div id="trashDrawer" class="fixed inset-y-0 left-0 z-50 w-full sm:w-80 bg-slate-900 border-r border-slate-800 shadow-2xl flex flex-col -translate-x-full" onclick="event.stopPropagation()">
       <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
-        <h3 class="font-bold text-white flex items-center gap-2"><i class="fa-solid fa-trash-can text-brand-500"></i> Tacho</h3>
+        <h3 class="font-bold text-white flex items-center gap-2"><i class="fa-solid fa-trash-can text-brand-500"></i> Papelera</h3>
         <button onclick="toggleTrashDrawer(event)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="p-4 border-b border-slate-800 flex flex-col gap-2">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Archivos eliminados</span>
-          <button id="emptyTrashBtn" onclick="showTrashConfirm()" class="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[11px] font-medium transition shadow flex items-center gap-1 hidden"><i class="fa-solid fa-ban"></i> Borrar todo</button>
-        </div>
-        <div id="trashConfirmBox" class="hidden bg-slate-950 border border-red-500/40 p-3 rounded-xl space-y-2 mt-2">
-          <div class="flex items-center gap-2 text-xs text-red-400 font-medium">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            <span>¿Vaciar tacho y borrar todo definitivamente?</span>
-          </div>
-          <div class="flex gap-2">
-            <button onclick="hideTrashConfirm()" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[11px] font-medium transition">Cancelar</button>
-            <button onclick="emptyTrashPermanently()" class="flex-1 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[11px] font-medium transition shadow">Eliminar</button>
-          </div>
-        </div>
       </div>
       <div class="flex-1 overflow-y-auto p-4 space-y-3" id="trashContent"></div>
     </div>
 
+    <!-- Contenido Principal -->
     <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-8">
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto items-stretch">
+        <!-- Texto Rápido -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
           <div>
             <h2 class="text-base font-bold mb-3 flex items-center gap-2 text-white"><i class="fa-solid fa-paste text-brand-500"></i> Texto Rápido</h2>
-            <textarea id="quickText" placeholder="Pega o escribe texto aquí..." class="w-full h-24 p-3 rounded-xl border border-slate-800 bg-slate-950 focus:ring-2 focus:ring-brand-500 focus:outline-none resize-none text-xs text-slate-200"></textarea>
+            <textarea id="quickText" placeholder="Escribe o pega texto..." class="w-full h-24 p-3 rounded-xl border border-slate-800 bg-slate-950 focus:ring-2 focus:ring-brand-500 focus:outline-none resize-none text-xs text-slate-200"></textarea>
           </div>
-          <div class="flex gap-2 mt-3">
-            <button onclick="saveQuickNote()" class="flex-1 py-2 bg-brand-600 text-white rounded-xl text-xs font-medium hover:bg-brand-700 transition shadow-md">Guardar</button>
-            <button onclick="clearQuickText()" class="px-3 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 transition">Limpiar</button>
-          </div>
+          <button onclick="saveQuickNote()" class="w-full py-2 bg-brand-600 text-white rounded-xl text-xs font-medium hover:bg-brand-700 transition shadow-md mt-3">Guardar Nota</button>
         </div>
 
+        <!-- Foto -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
           <div>
-            <h2 class="text-base font-bold mb-1 flex items-center gap-2 text-white"><i class="fa-solid fa-camera text-brand-500"></i> Tomar Foto</h2>
-            <p class="text-[11px] text-slate-400 mb-3">Captura una foto desde tu cámara o sube archivo.</p>
+            <h2 class="text-base font-bold mb-1 flex items-center gap-2 text-white"><i class="fa-solid fa-camera text-brand-500"></i> Subir Foto</h2>
+            <p class="text-[11px] text-slate-400 mb-3">Sube imágenes a la nube.</p>
           </div>
-          <div class="grid grid-cols-2 gap-2">
-            <label class="border-2 border-dashed border-slate-800 hover:border-brand-500 rounded-xl p-2 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-950/50 hover:bg-slate-950 group h-20">
-              <i class="fa-solid fa-cloud-arrow-up text-lg text-slate-500 group-hover:text-brand-500 mb-1"></i>
-              <span class="text-[10px] text-slate-400 text-center font-medium">Subir</span>
-              <input type="file" accept="image/*" class="hidden" onchange="handlePhotoUpload(event)">
-            </label>
-            <button type="button" onclick="openWebcamCapture()" class="border-2 border-dashed border-slate-800 hover:border-brand-500 rounded-xl p-2 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-950/50 hover:bg-slate-950 group h-20 focus:outline-none">
-              <i class="fa-solid fa-camera-retro text-lg text-slate-500 group-hover:text-brand-500 mb-1"></i>
-              <span class="text-[10px] text-slate-400 text-center font-medium">Cámara</span>
-            </button>
-          </div>
+          <label class="border-2 border-dashed border-slate-800 hover:border-brand-500 rounded-xl p-2 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-950/50 hover:bg-slate-950 group h-20">
+            <i class="fa-solid fa-cloud-arrow-up text-lg text-slate-500 group-hover:text-brand-500 mb-1"></i>
+            <span class="text-[10px] text-slate-400 text-center font-medium">Examinar Foto</span>
+            <input type="file" accept="image/*" class="hidden" onchange="handleMediaUpload(event, 'photo')">
+          </label>
         </div>
 
+        <!-- Video -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
           <div>
-            <h2 class="text-base font-bold mb-1 flex items-center gap-2 text-white"><i class="fa-solid fa-video text-brand-500"></i> Grabar Video</h2>
-            <p class="text-[11px] text-slate-400 mb-3">Graba un video en vivo o súbelo directamente.</p>
+            <h2 class="text-base font-bold mb-1 flex items-center gap-2 text-white"><i class="fa-solid fa-video text-brand-500"></i> Subir Video</h2>
+            <p class="text-[11px] text-slate-400 mb-3">Comparte videos en tus dispositivos.</p>
           </div>
-          <div class="grid grid-cols-2 gap-2">
-            <label class="border-2 border-dashed border-slate-800 hover:border-brand-500 rounded-xl p-2 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-950/50 hover:bg-slate-950 group h-20">
-              <i class="fa-solid fa-cloud-arrow-up text-lg text-slate-500 group-hover:text-brand-500 mb-1"></i>
-              <span class="text-[10px] text-slate-400 text-center font-medium">Subir</span>
-              <input type="file" accept="video/*" class="hidden" onchange="handleVideoUpload(event)">
-            </label>
-            <button type="button" onclick="openVideoRecorderModal()" class="border-2 border-dashed border-slate-800 hover:border-brand-500 rounded-xl p-2 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-950/50 hover:bg-slate-950 group h-20 focus:outline-none">
-              <i class="fa-solid fa-circle-play text-lg text-slate-500 group-hover:text-brand-500 mb-1"></i>
-              <span class="text-[10px] text-slate-400 text-center font-medium">Grabar</span>
-            </button>
-          </div>
+          <label class="border-2 border-dashed border-slate-800 hover:border-brand-500 rounded-xl p-2 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-950/50 hover:bg-slate-950 group h-20">
+            <i class="fa-solid fa-cloud-arrow-up text-lg text-slate-500 group-hover:text-brand-500 mb-1"></i>
+            <span class="text-[10px] text-slate-400 text-center font-medium">Examinar Video</span>
+            <input type="file" accept="video/*" class="hidden" onchange="handleMediaUpload(event, 'video')">
+          </label>
         </div>
 
+        <!-- Audio -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
           <div>
-            <h2 class="text-base font-bold mb-1 flex items-center gap-2 text-white"><i class="fa-solid fa-microphone text-brand-500"></i> Notas de Voz</h2>
-            <p class="text-[11px] text-slate-400 mb-3">Graba notas de audio en alta resolución.</p>
+            <h2 class="text-base font-bold mb-1 flex items-center gap-2 text-white"><i class="fa-solid fa-microphone text-brand-500"></i> Nota de Voz</h2>
+            <p class="text-[11px] text-slate-400 mb-3">Graba audios rápidos.</p>
           </div>
-          <div class="flex flex-col items-center justify-center border-2 border-dashed border-slate-800 hover:border-brand-500 rounded-xl p-2 bg-slate-950/50 h-20 transition-all">
-            <span id="recordingStatus" class="text-[10px] text-red-400 hidden flex items-center gap-1 mb-1"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> Grabando...</span>
-            <button id="recordBtn" onclick="toggleRecording()" class="w-full py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-medium transition shadow-md flex items-center justify-center gap-1.5">
-              <i class="fa-solid fa-circle-dot" id="recordIcon"></i> <span id="recordBtnText">Grabar Audio</span>
-            </button>
-          </div>
+          <button id="recordBtn" onclick="toggleRecording()" class="w-full py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-medium transition shadow-md flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-circle-dot" id="recordIcon"></i> <span id="recordBtnText">Grabar Audio</span>
+          </button>
         </div>
       </div>
 
       <hr class="border-slate-800">
 
+      <!-- Contenedores de Galerías -->
       <div class="space-y-10">
         <div>
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-bold flex items-center gap-2 text-white"><i class="fa-solid fa-note-sticky text-brand-500"></i> Tus Notas Guardadas</h2>
-            <div class="flex gap-2">
-              <button onclick="scrollSection('notesContainer', -300)" class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 flex items-center justify-center transition"><i class="fa-solid fa-chevron-left"></i></button>
-              <button onclick="scrollSection('notesContainer', 300)" class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 flex items-center justify-center transition"><i class="fa-solid fa-chevron-right"></i></button>
-            </div>
-          </div>
-          <div id="notesContainer" class="horizontal-scroll" style="grid-auto-columns: 260px;"></div>
+          <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-white"><i class="fa-solid fa-note-sticky text-brand-500"></i> Tus Notas</h2>
+          <div id="notesContainer" class="horizontal-scroll"></div>
         </div>
-
         <div>
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-bold flex items-center gap-2 text-white"><i class="fa-solid fa-images text-brand-500"></i> Fotos</h2>
-            <div class="flex gap-2">
-              <button onclick="scrollSection('photosContainer', -300)" class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 flex items-center justify-center transition"><i class="fa-solid fa-chevron-left"></i></button>
-              <button onclick="scrollSection('photosContainer', 300)" class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 flex items-center justify-center transition"><i class="fa-solid fa-chevron-right"></i></button>
-            </div>
-          </div>
-          <div id="photosContainer" class="horizontal-scroll" style="grid-auto-columns: 220px;"></div>
+          <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-white"><i class="fa-solid fa-images text-brand-500"></i> Fotos</h2>
+          <div id="photosContainer" class="horizontal-scroll"></div>
         </div>
-
         <div>
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-bold flex items-center gap-2 text-white"><i class="fa-solid fa-video text-brand-500"></i> Videos</h2>
-            <div class="flex gap-2">
-              <button onclick="scrollSection('videosContainer', -300)" class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 flex items-center justify-center transition"><i class="fa-solid fa-chevron-left"></i></button>
-              <button onclick="scrollSection('videosContainer', 300)" class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 flex items-center justify-center transition"><i class="fa-solid fa-chevron-right"></i></button>
-            </div>
-          </div>
-          <div id="videosContainer" class="horizontal-scroll" style="grid-auto-columns: 220px;"></div>
+          <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-white"><i class="fa-solid fa-video text-brand-500"></i> Videos</h2>
+          <div id="videosContainer" class="horizontal-scroll"></div>
         </div>
-
         <div>
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-bold flex items-center gap-2 text-white"><i class="fa-solid fa-microphone-lines text-brand-500"></i> Galería de Audios</h2>
-            <div class="flex gap-2">
-              <button onclick="scrollSection('audiosContainer', -300)" class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 flex items-center justify-center transition"><i class="fa-solid fa-chevron-left"></i></button>
-              <button onclick="scrollSection('audiosContainer', 300)" class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 flex items-center justify-center transition"><i class="fa-solid fa-chevron-right"></i></button>
-            </div>
-          </div>
+          <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-white"><i class="fa-solid fa-microphone-lines text-brand-500"></i> Audios</h2>
           <div id="audiosContainer" class="horizontal-scroll" style="grid-auto-columns: 300px;"></div>
         </div>
       </div>
     </main>
   </div>
 
-  <div id="webcamModal" class="modal-overlay fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-2xl p-6 shadow-2xl relative space-y-4 flex flex-col items-center">
-      <h3 class="text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-camera text-brand-500"></i> Tomar Foto con Cámara Web</h3>
-      <div class="relative w-full overflow-hidden rounded-xl bg-black aspect-video flex items-center justify-center border border-slate-800">
-        <video id="webcamVideo" autoplay playsinline class="w-full h-full object-cover"></video>
-      </div>
-      <div class="flex gap-3 w-full">
-        <button onclick="takeWebcamSnapshot()" class="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition shadow-md">Capturar Foto</button>
-        <button onclick="closeWebcamModal()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-sm font-medium transition">Cancelar</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="videoModal" class="modal-overlay fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-2xl p-6 shadow-2xl relative space-y-4 flex flex-col items-center">
-      <h3 class="text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-video text-brand-500"></i> Grabar Video en Directo</h3>
-      <div class="relative w-full overflow-hidden rounded-xl bg-black aspect-video flex items-center justify-center border border-slate-800">
-        <video id="videoRecorderElement" autoplay muted playsinline class="w-full h-full object-cover"></video>
-      </div>
-      <div class="flex items-center justify-center gap-2 text-xs text-red-400 hidden" id="videoRecStatus"><span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span> Grabando video...</div>
-      <div class="flex gap-3 w-full">
-        <button id="startVideoRecBtn" onclick="startVideoRecording()" class="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition shadow-md">Iniciar Grabación</button>
-        <button id="stopVideoRecBtn" onclick="stopVideoRecording()" class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium transition shadow-md hidden">Detener y Guardar</button>
-        <button onclick="closeVideoModal()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-sm font-medium transition">Cerrar</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="editModal" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-6">
-    <div class="bg-slate-900 border border-slate-800 w-[73vw] h-[73vh] rounded-2xl p-4 sm:p-8 shadow-2xl relative flex flex-col justify-between space-y-4" onclick="event.stopPropagation()">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="text-xl font-bold text-white flex items-center gap-2"><i class="fa-solid fa-pen-to-square text-brand-500"></i> Visualizador y Editor de Nota</h3>
-        <button onclick="closeModal()" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center transition"><i class="fa-solid fa-xmark text-lg"></i></button>
-      </div>
-      <textarea id="modalTextarea" class="w-full flex-1 p-6 rounded-xl border border-slate-800 bg-slate-950 focus:ring-2 focus:ring-brand-500 focus:outline-none text-slate-100 text-lg sm:text-xl resize-none leading-relaxed" placeholder="Contenido de la nota..."></textarea>
-      <div class="flex justify-end gap-3 pt-2">
-        <button onclick="copyModalContent()" class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-base font-medium transition flex items-center gap-2"><i class="fa-solid fa-copy"></i> Copiar Texto</button>
-        <button onclick="saveModalEdit()" class="px-8 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-base font-medium transition shadow-lg shadow-brand-600/30">Guardar Cambios</button>
+  <!-- Modales de Edición y Visualizador -->
+  <div id="editModal" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-2xl p-6 shadow-2xl relative space-y-4" onclick="event.stopPropagation()">
+      <h3 class="text-lg font-bold text-white">Editar Nota</h3>
+      <textarea id="modalTextarea" class="w-full h-32 p-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-sm"></textarea>
+      <div class="flex justify-end gap-2">
+        <button onclick="saveModalEdit()" class="px-4 py-2 bg-brand-600 text-white rounded-xl text-xs font-medium">Guardar</button>
+        <button onclick="closeModal()" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs font-medium">Cancelar</button>
       </div>
     </div>
   </div>
 
   <div id="mediaViewerModal" class="modal-overlay fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick="closeMediaViewer()">
     <div class="relative flex flex-col items-center w-[73vw] h-[73vh]" onclick="event.stopPropagation()">
-      <button onclick="closeMediaViewer()" class="absolute -top-12 right-0 w-10 h-10 flex items-center justify-center bg-slate-800 text-slate-200 rounded-full hover:bg-slate-700 transition shadow-xl z-10" title="Cerrar"><i class="fa-solid fa-xmark text-lg"></i></button>
+      <button onclick="closeMediaViewer()" class="absolute -top-12 right-0 w-10 h-10 flex items-center justify-center bg-slate-800 text-slate-200 rounded-full">X</button>
       <div id="mediaViewerWrapper" class="flex items-center justify-center w-full h-full"></div>
     </div>
   </div>
 
   <script>
-    let db, notes = JSON.parse(localStorage.getItem('user_notes') || '[]'), photos = [], videos = [], audios = [];
-    let trashNotes = JSON.parse(localStorage.getItem('trash_notes') || '[]'), trashPhotos = JSON.parse(localStorage.getItem('trash_photos') || '[]'), trashVideos = JSON.parse(localStorage.getItem('trash_videos') || '[]'), trashAudios = JSON.parse(localStorage.getItem('trash_audios') || '[]');
-    let currentEditingId = null, loginAttempts = 3;
+    // Credenciales de Supabase integradas
+    const SUPABASE_URL = 'https://ifqgwhmccbixkrzlbywi.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_5Q7GmKcH0hOlCYSKZnXbfg_pES1S...';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let notes = [], photos = [], videos = [], audios = [], trash = [];
+    let currentEditingId = null;
     let mediaRecorder = null, audioChunks = [], isRecording = false;
-    let webcamStream = null, videoStream = null, videoRecorder = null, recordedVideoChunks = [];
-
-    const requestDB = indexedDB.open('MiBovedaMediaDB', 5);
-    requestDB.onupgradeneeded = (e) => {
-      db = e.target.result;
-      if (!db.objectStoreNames.contains('photos')) db.createObjectStore('photos', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('videos')) db.createObjectStore('videos', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('audios')) db.createObjectStore('audios', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('trash_photos')) db.createObjectStore('trash_photos', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('trash_videos')) db.createObjectStore('trash_videos', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('trash_audios')) db.createObjectStore('trash_audios', { keyPath: 'id' });
-    };
-    requestDB.onsuccess = (e) => { db = e.target.result; loadAllMediaFromDB(); };
-    requestDB.onerror = () => { renderPhotos(); renderVideos(); renderAudios(); };
-
-    function loadAllMediaFromDB() {
-      loadStoreData('photos', (items) => { photos = items; renderPhotos(); });
-      loadStoreData('videos', (items) => { 
-        videos = items.map(v => ({ ...v, src: v.blob ? URL.createObjectURL(v.blob) : v.src })); 
-        renderVideos(); 
-      });
-      loadStoreData('audios', (items) => { 
-        audios = items.map(a => ({ ...a, src: a.blob ? URL.createObjectURL(a.blob) : a.src })); 
-        renderAudios(); 
-      });
-      loadStoreData('trash_photos', (items) => { trashPhotos = items; });
-      loadStoreData('trash_videos', (items) => { trashVideos = items; });
-      loadStoreData('trash_audios', (items) => { trashAudios = items; });
-    }
-    function loadStoreData(storeName, callback) {
-      if (!db) { callback([]); return; }
-      try {
-        const transaction = db.transaction(storeName, 'readonly');
-        const store = transaction.objectStore(storeName);
-        const request = store.getAll();
-        request.onsuccess = () => { callback((request.result || []).sort((a, b) => b.id - a.id)); };
-        request.onerror = () => { callback([]); };
-      } catch (err) { callback([]); }
-    }
-    function saveToDB(storeName, item, callback) {
-      if (!db) { if (callback) callback(); return; }
-      try {
-        const transaction = db.transaction(storeName, 'readwrite');
-        const store = transaction.objectStore(storeName);
-        store.put(item);
-        transaction.oncomplete = () => { if (callback) callback(); };
-        transaction.onerror = () => { if (callback) callback(); };
-      } catch (err) { if (callback) callback(); }
-    }
-    function deleteFromDB(storeName, id, callback) {
-      if (!db) { if (callback) callback(); return; }
-      try {
-        const transaction = db.transaction(storeName, 'readwrite');
-        const store = transaction.objectStore(storeName);
-        store.delete(id);
-        transaction.oncomplete = () => { if (callback) callback(); };
-        transaction.onerror = () => { if (callback) callback(); };
-      } catch (err) { if (callback) callback(); }
-    }
-    function showCustomAlert(message) {
-      document.getElementById('customAlertText').textContent = message;
-      document.getElementById('customAlertModal').classList.add('active');
-    }
-    function closeCustomAlert() { document.getElementById('customAlertModal').classList.remove('active'); }
 
     window.addEventListener('DOMContentLoaded', () => {
-      if (!localStorage.getItem('user_password')) { document.getElementById('registerToggleBtn').classList.remove('hidden'); }
+      checkRegistrationStatus();
       if (sessionStorage.getItem('user_session') === 'active') {
-        renderNotes();
-        renderPhotos();
-        renderVideos();
-        renderAudios();
+        fetchAllDataFromSupabase();
       }
     });
+
+    async function checkRegistrationStatus() {
+      const { data } = await supabaseClient.from('boveda_config').select('*').limit(1);
+      if (!data || data.length === 0) {
+        document.getElementById('registerToggleBtn').classList.remove('hidden');
+      }
+    }
 
     function switchToRegister() {
       document.getElementById('loginForm').classList.add('hidden');
       document.getElementById('registerForm').classList.remove('hidden');
-      document.getElementById('authSubtitle').textContent = 'Crea tu contraseña y preguntas de seguridad';
-      document.getElementById('loginErrorMsg').classList.add('hidden');
     }
     function switchToLogin() {
       document.getElementById('registerForm').classList.add('hidden');
       document.getElementById('loginForm').classList.remove('hidden');
-      document.getElementById('authSubtitle').textContent = 'Inicia sesión con tu contraseña';
-      document.getElementById('loginErrorMsg').classList.add('hidden');
     }
-    function handleLogin(e) {
+
+    async function saveNewUser(e) {
       e.preventDefault();
-      const inputPass = document.getElementById('passwordInput').value.trim();
-      const savedPass = localStorage.getItem('user_password');
-      const errBox = document.getElementById('loginErrorMsg');
-      
-      if (!savedPass) { 
-        errBox.textContent = 'No hay contraseña registrada. Haz clic en "Soy usuario nuevo".'; 
-        errBox.classList.remove('hidden'); 
-        return; 
-      }
-      
-      if (inputPass === savedPass) {
-        sessionStorage.setItem('user_session', 'active');
-        document.getElementById('loginView').style.display = 'none';
-        document.getElementById('appView').style.display = 'flex';
-        renderNotes();
-        renderPhotos();
-        renderVideos();
-        renderAudios();
-      } else {
-        loginAttempts--;
-        if (loginAttempts > 0) { 
-          errBox.textContent = `Contraseña incorrecta, te quedan ${loginAttempts} intentos`; 
-          errBox.classList.remove('hidden'); 
-        } else { 
-          errBox.textContent = 'Acceso bloqueado temporalmente por intentos fallidos.'; 
-          errBox.classList.remove('hidden'); 
-          document.getElementById('passwordInput').disabled = true; 
-        }
-      }
-    }
-    function saveNewUser(e) {
-      e.preventDefault();
-      const ans1 = document.getElementById('secAnswerReg1').value.trim();
-      const ans2 = document.getElementById('secAnswerReg2').value.trim();
       const pass = document.getElementById('newPasswordReg').value.trim();
       const confirmPass = document.getElementById('confirmPasswordReg').value.trim();
+      const ans1 = document.getElementById('secAnswerReg1').value.trim();
+      const ans2 = document.getElementById('secAnswerReg2').value.trim();
       const errBox = document.getElementById('registerErrorMsg');
-      if (pass !== confirmPass) { errBox.textContent = 'No coincide la contraseña'; errBox.classList.remove('hidden'); return; }
-      if (pass.length !== 10) { errBox.textContent = 'La contraseña debe tener exactamente 10 caracteres.'; errBox.classList.add('hidden'); return; }
-      errBox.classList.add('hidden');
-      localStorage.setItem('user_password', pass);
-      localStorage.setItem('sec_answer_1', ans1);
-      localStorage.setItem('sec_answer_2', ans2);
-      showCustomAlert('¡Contraseña creada con éxito!');
+
+      if (pass !== confirmPass) { errBox.textContent = 'Las contraseñas no coinciden'; errBox.classList.remove('hidden'); return; }
+
+      const { error } = await supabaseClient.from('boveda_config').insert([{ password_hash: pass, sec_answer_1: ans1, sec_answer_2: ans2 }]);
+      if (error) { showCustomAlert('Error al registrar en Supabase.'); return; }
+
+      showCustomAlert('¡Bóveda creada en la nube con éxito!');
       switchToLogin();
       document.getElementById('registerToggleBtn').classList.add('hidden');
     }
-    function openRecoveryModal() { document.getElementById('recoveryModal').classList.add('active'); }
-    function closeRecoveryModal() { document.getElementById('recoveryModal').classList.remove('active'); }
-    function verifyAndResetPassword(e) {
-      e.preventDefault();
-      const ansInput1 = document.getElementById('secAnswerRec1').value.trim();
-      const ansInput2 = document.getElementById('secAnswerRec2').value.trim();
-      const newPass = document.getElementById('newPasswordRec').value.trim();
-      const confirmPass = document.getElementById('confirmPasswordRec').value.trim();
-      const errBox = document.getElementById('recoveryErrorMsg');
-      const savedAns1 = localStorage.getItem('sec_answer_1');
-      const savedAns2 = localStorage.getItem('sec_answer_2');
-      if (!savedAns1 || !savedAns2) { showCustomAlert('No se encontraron preguntas de seguridad configuradas.'); return; }
-      if (newPass !== confirmPass) { errBox.textContent = 'No coincide la contraseña'; errBox.classList.add('hidden'); return; }
-      if (ansInput1.toLowerCase() === savedAns1.toLowerCase() && ansInput2.toLowerCase() === savedAns2.toLowerCase()) {
-        if (newPass.length !== 10) { errBox.textContent = 'La nueva contraseña debe tener exactamente 10 caracteres.'; errBox.classList.add('hidden'); return; }
-        errBox.classList.add('hidden');
-        localStorage.setItem('user_password', newPass);
-        showCustomAlert('¡Contraseña restablecida con éxito!');
-        closeRecoveryModal();
-        document.getElementById('passwordInput').value = '';
-        document.getElementById('loginErrorMsg').classList.add('hidden');
-      } else { showCustomAlert('Una o ambas respuestas de seguridad son incorrectas.'); }
-    }
-    
-    // FUNCIÓN DE SALIDA CORREGIDA
-    function handleLogout() {
-      sessionStorage.removeItem('user_session');
-      document.getElementById('appView').style.display = 'none';
-      document.getElementById('loginView').style.display = 'flex';
-      document.getElementById('passwordInput').value = '';
-      document.getElementById('loginErrorMsg').classList.add('hidden');
-    }
 
-    function toggleChatDrawer(event) {
-      event.stopPropagation();
-      const drawer = document.getElementById('chatDrawer'), trashDrawer = document.getElementById('trashDrawer');
-      if (!trashDrawer.classList.contains('-translate-x-full')) trashDrawer.classList.add('-translate-x-full');
-      drawer.classList.toggle('-translate-x-full');
-    }
-    function toggleTrashDrawer(event) {
-      event.stopPropagation();
-      const trashDrawer = document.getElementById('trashDrawer'), chatDrawer = document.getElementById('chatDrawer');
-      if (!chatDrawer.classList.contains('-translate-x-full')) chatDrawer.classList.add('-translate-x-full');
-      trashDrawer.classList.toggle('-translate-x-full');
-      if (!trashDrawer.classList.contains('-translate-x-full')) {
-        hideTrashConfirm();
-        renderTrashContent();
+    async function handleLogin(e) {
+      e.preventDefault();
+      const inputPass = document.getElementById('passwordInput').value.trim();
+      const errBox = document.getElementById('loginErrorMsg');
+
+      const { data, error } = await supabaseClient.from('boveda_config').select('*').limit(1);
+      if (error || !data || data.length === 0) { errBox.textContent = 'No hay bóveda configurada.'; errBox.classList.remove('hidden'); return; }
+
+      if (inputPass === data[0].password_hash) {
+        sessionStorage.setItem('user_session', 'active');
+        document.getElementById('loginView').style.display = 'none';
+        document.getElementById('appView').style.display = 'flex';
+        fetchAllDataFromSupabase();
+      } else {
+        errBox.textContent = 'Contraseña incorrecta.';
+        errBox.classList.remove('hidden');
       }
     }
-    function scrollSection(containerId, offset) {
-      const container = document.getElementById(containerId);
-      if (container) container.scrollBy({ left: offset, behavior: 'smooth' });
+
+    function handleLogout() {
+      sessionStorage.removeItem('user_session');
+      location.reload();
     }
+
+    async function fetchAllDataFromSupabase() {
+      const resNotes = await supabaseClient.from('boveda_notes').select('*').order('id', { ascending: false });
+      notes = resNotes.data || [];
+      renderNotes();
+
+      const resMedia = await supabaseClient.from('boveda_media').select('*').order('id', { ascending: false });
+      photos = (resMedia.data || []).filter(m => m.type === 'photo');
+      videos = (resMedia.data || []).filter(m => m.type === 'video');
+      audios = (resMedia.data || []).filter(m => m.type === 'audio');
+      renderPhotos(); renderVideos(); renderAudios();
+
+      const resTrash = await supabaseClient.from('boveda_trash').select('*');
+      trash = resTrash.data || [];
+      renderTrashContent();
+    }
+
     function getFormattedTimestamp() {
       const now = new Date();
       return now.toLocaleDateString() + ', ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
-    function saveQuickNote() {
+
+    async function saveQuickNote() {
       const text = document.getElementById('quickText').value.trim();
       if (!text) return;
-      notes.unshift({ id: Date.now(), content: text, date: getFormattedTimestamp() });
-      try {
-        localStorage.setItem('user_notes', JSON.stringify(notes));
-        document.getElementById('quickText').value = '';
-        renderNotes();
-      } catch (err) { showCustomAlert('Almacenamiento local lleno.'); notes.shift(); }
-    }
-    function clearQuickText() { document.getElementById('quickText').value = ''; }
-    function deleteNote(id, event) {
-      if (event) event.stopPropagation();
-      const noteToTrash = notes.find(n => n.id === id);
-      if (noteToTrash) { trashNotes.unshift(noteToTrash); localStorage.setItem('trash_notes', JSON.stringify(trashNotes)); }
-      notes = notes.filter(n => n.id !== id);
-      localStorage.setItem('user_notes', JSON.stringify(notes));
+      const newNote = { id: Date.now(), content: text, date: getFormattedTimestamp() };
+      
+      await supabaseClient.from('boveda_notes').insert([newNote]);
+      notes.unshift(newNote);
+      document.getElementById('quickText').value = '';
       renderNotes();
     }
-    function copyToClipboard(text, event) {
-      if (event) event.stopPropagation();
-      navigator.clipboard.writeText(text);
-      showCustomAlert('¡Texto copiado!');
-    }
-    function openEditModal(id) {
-      const note = notes.find(n => n.id === id);
-      if (!note) return;
-      currentEditingId = id;
-      document.getElementById('modalTextarea').value = note.content;
-      document.getElementById('editModal').classList.add('active');
-    }
-    function closeModal() { document.getElementById('editModal').classList.remove('active'); currentEditingId = null; }
-    function saveModalEdit() {
-      if (!currentEditingId) return;
-      const newText = document.getElementById('modalTextarea').value.trim();
-      notes = notes.map(n => n.id === currentEditingId ? { ...n, content: newText } : n);
-      try {
-        localStorage.setItem('user_notes', JSON.stringify(notes));
-        renderNotes();
-        closeModal();
-      } catch (err) { showCustomAlert('Almacenamiento local lleno.'); }
-    }
-    function copyModalContent() {
-      navigator.clipboard.writeText(document.getElementById('modalTextarea').value);
-      showCustomAlert('¡Texto copiado!');
-    }
-    function openMediaViewer(src, type, event) {
-      if (event) event.stopPropagation();
-      const modal = document.getElementById('mediaViewerModal'), wrapper = document.getElementById('mediaViewerWrapper');
-      if (type === 'photo') {
-        wrapper.innerHTML = `<img src="${src}" class="w-full h-full rounded-xl object-contain shadow-2xl border border-slate-800">`;
-      } else if (type === 'video') {
-        wrapper.innerHTML = `<video src="${src}" controls autoplay class="w-full h-full rounded-xl shadow-2xl border border-slate-800 object-contain"></video>`;
-      }
-      modal.classList.add('active');
-    }
-    function closeMediaViewer() {
-      document.getElementById('mediaViewerModal').classList.remove('active');
-      document.getElementById('mediaViewerWrapper').innerHTML = '';
-    }
-    function deletePhoto(id, event) {
-      if (event) event.stopPropagation();
-      const item = photos.find(p => p.id === id);
-      if (item) {
-        trashPhotos.unshift(item);
-        saveToDB('trash_photos', item, () => {});
-      }
-      deleteFromDB('photos', id, () => {
-        photos = photos.filter(p => p.id !== id);
-        renderPhotos();
-      });
-    }
-    function deleteVideo(id, event) {
-      if (event) event.stopPropagation();
-      const item = videos.find(v => v.id === id);
-      if (item) {
-        trashVideos.unshift(item);
-        saveToDB('trash_videos', item, () => {});
-      }
-      deleteFromDB('videos', id, () => {
-        videos = videos.filter(v => v.id !== id);
-        renderVideos();
-      });
-    }
-    function renderTrashContent() {
-      const trashContent = document.getElementById('trashContent');
-      const emptyTrashBtn = document.getElementById('emptyTrashBtn');
-      let html = '';
-      
-      trashNotes.forEach(n => {
-        html += `<div class="bg-slate-950 p-3 rounded-xl border border-slate-800 shadow-sm flex flex-col justify-between gap-2"><p class="text-xs text-slate-300 line-clamp-2 whitespace-pre-wrap">${escapeHtml(n.content)}</p><div class="flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-800/80 pt-1.5"><span class="text-slate-400">Nota</span><button onclick="restoreTrashItem(${n.id}, 'note')" class="text-brand-400 hover:text-brand-300 font-medium"><i class="fa-solid fa-rotate-left"></i> Restaurar</button></div></div>`;
-      });
-      trashPhotos.forEach(p => {
-        html += `<div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex items-center gap-3"><img src="${p.src}" class="w-12 h-12 rounded-lg object-cover"><div class="flex-1 flex items-center justify-between"><span class="text-xs text-slate-400">Foto</span><button onclick="restoreTrashItem(${p.id}, 'photo')" class="px-2.5 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-[10px] font-medium shadow"><i class="fa-solid fa-rotate-left"></i> Restaurar</button></div></div>`;
-      });
-      trashVideos.forEach(v => {
-        const vSrc = v.blob ? URL.createObjectURL(v.blob) : v.src;
-        html += `<div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex items-center gap-3"><video src="${vSrc}" class="w-12 h-12 rounded-lg object-cover"></video><div class="flex-1 flex items-center justify-between"><span class="text-xs text-slate-400">Video</span><button onclick="restoreTrashItem(${v.id}, 'video')" class="px-2.5 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-[10px] font-medium shadow"><i class="fa-solid fa-rotate-left"></i> Restaurar</button></div></div>`;
-      });
-      trashAudios.forEach(aud => {
-        const aSrc = aud.blob ? URL.createObjectURL(aud.blob) : aud.src;
-        html += `<div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex flex-col gap-2"><div class="flex items-center justify-between text-xs text-slate-400"><span><i class="fa-solid fa-microphone-lines text-brand-500"></i> Audio</span><button onclick="restoreTrashItem(${aud.id}, 'audio')" class="text-brand-400 hover:text-brand-300 text-[11px]"><i class="fa-solid fa-rotate-left"></i> Restaurar</button></div><audio controls src="${aSrc}" class="w-full h-7 accent-brand-500"></audio></div>`;
-      });
-      
-      trashContent.innerHTML = html || '<p class="text-slate-500 text-xs text-center py-6">El tacho está vacío.</p>';
 
-      const hasItems = trashNotes.length > 0 || trashPhotos.length > 0 || trashVideos.length > 0 || trashAudios.length > 0;
-      if (hasItems) {
-        emptyTrashBtn.classList.remove('hidden');
-      } else {
-        emptyTrashBtn.classList.add('hidden');
-        hideTrashConfirm();
-      }
-    }
-    function restoreTrashItem(id, type) {
-      if (type === 'note') {
-        const item = trashNotes.find(n => n.id === id);
-        if (item) { notes.unshift(item); localStorage.setItem('user_notes', JSON.stringify(notes)); trashNotes = trashNotes.filter(n => n.id !== id); localStorage.setItem('trash_notes', JSON.stringify(trashNotes)); renderNotes(); }
-      } else if (type === 'photo') {
-        const item = trashPhotos.find(p => p.id === id);
-        if (item) { photos.unshift(item); saveToDB('photos', item); trashPhotos = trashPhotos.filter(p => p.id !== id); deleteFromDB('trash_photos', id); renderPhotos(); }
-      } else if (type === 'video') {
-        const item = trashVideos.find(v => v.id === id);
-        if (item) { 
-          const cleanItem = { id: item.id, blob: item.blob, date: item.date };
-          videos.unshift({ ...cleanItem, src: URL.createObjectURL(item.blob) }); 
-          saveToDB('videos', cleanItem); 
-          trashVideos = trashVideos.filter(v => v.id !== id); 
-          deleteFromDB('trash_videos', id); 
-          renderVideos(); 
-        }
-      } else if (type === 'audio') {
-        const item = trashAudios.find(a => a.id === id);
-        if (item) { 
-          const cleanItem = { id: item.id, blob: item.blob, date: item.date };
-          audios.unshift({ ...cleanItem, src: URL.createObjectURL(item.blob) }); 
-          saveToDB('audios', cleanItem); 
-          trashAudios = trashAudios.filter(a => a.id !== id); 
-          deleteFromDB('trash_audios', id); 
-          renderAudios(); 
-        }
-      }
-      renderTrashContent();
-    }
-    function showTrashConfirm() {
-      document.getElementById('trashConfirmBox').classList.remove('hidden');
-    }
-    function hideTrashConfirm() {
-      document.getElementById('trashConfirmBox').classList.add('hidden');
-    }
-    function emptyTrashPermanently() {
-      trashNotes = []; trashPhotos = []; trashVideos = []; trashAudios = [];
-      localStorage.removeItem('trash_notes');
-      ['trash_photos', 'trash_videos', 'trash_audios'].forEach(storeName => {
-        const transaction = db.transaction(storeName, 'readwrite');
-        transaction.objectStore(storeName).clear();
-      });
-      hideTrashConfirm();
-      renderTrashContent();
-    }
-
-    // --- FOTO ---
-    async function openWebcamCapture() {
-      if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-        const input = document.createElement('input'); 
-        input.type = 'file'; 
-        input.accept = 'image/*'; 
-        input.capture = 'environment';
-        input.onchange = (e) => handlePhotoUpload(e); 
-        input.click(); 
-        return;
-      }
-      const modal = document.getElementById('webcamModal'), videoElem = document.getElementById('webcamVideo');
-      modal.classList.add('active');
-      try {
-        webcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        videoElem.srcObject = webcamStream;
-      }
-      catch (err) { showCustomAlert('No se pudo acceder a la cámara web.'); closeWebcamModal(); }
-    }
-    function closeWebcamModal() {
-      document.getElementById('webcamModal').classList.remove('active');
-      const videoElem = document.getElementById('webcamVideo');
-      if (videoElem) videoElem.srcObject = null;
-      if (webcamStream) {
-        webcamStream.getTracks().forEach(track => track.stop());
-        webcamStream = null;
-      }
-    }
-    function takeWebcamSnapshot() {
-      const videoElem = document.getElementById('webcamVideo'), canvas = document.createElement('canvas');
-      canvas.width = videoElem.videoWidth || 1280; canvas.height = videoElem.videoHeight || 720;
-      const ctx = canvas.getContext('2d'); ctx.drawImage(videoElem, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      const newPhoto = { id: Date.now(), src: dataUrl, date: getFormattedTimestamp() };
-      saveToDB('photos', newPhoto, () => { photos.unshift(newPhoto); renderPhotos(); });
-      closeWebcamModal();
-    }
-
-    // --- GRABADORA DE VÍDEO CON BLOB Y OBJECTURL ---
-    async function openVideoRecorderModal() {
-      if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-        const input = document.createElement('input'); 
-        input.type = 'file'; 
-        input.accept = 'video/*'; 
-        input.capture = 'environment';
-        input.onchange = (e) => handleVideoUpload(e); 
-        input.click(); 
-        return;
-      }
-      const modal = document.getElementById('videoModal'), videoElem = document.getElementById('videoRecorderElement');
-      modal.classList.add('active');
-      try {
-        videoStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }, 
-          audio: true 
-        });
-        videoElem.srcObject = videoStream;
-      } catch (err) { 
-        showCustomAlert('No se pudo acceder a la cámara o micrófono.'); 
-        closeVideoModal(); 
-      }
-    }
-    function closeVideoModal() {
-      document.getElementById('videoModal').classList.remove('active');
-      document.getElementById('videoRecStatus').classList.add('hidden');
-      document.getElementById('startVideoRecBtn').classList.remove('hidden');
-      document.getElementById('stopVideoRecBtn').classList.add('hidden');
-      const videoElem = document.getElementById('videoRecorderElement');
-      if (videoElem) videoElem.srcObject = null;
-      if (videoRecorder && videoRecorder.state !== 'inactive') {
-        videoRecorder.stop();
-      }
-      if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-        videoStream = null;
-      }
-    }
-    function startVideoRecording() {
-      if (!videoStream) return;
-      recordedVideoChunks = [];
-
-      let selectedMimeType = '';
-      const candidateTypes = [
-        'video/webm;codecs=vp9,opus',
-        'video/webm;codecs=vp8,opus',
-        'video/webm;codecs=h264,opus',
-        'video/webm',
-        'video/mp4'
-      ];
-
-      for (let type of candidateTypes) {
-        if (MediaRecorder.isTypeSupported(type)) {
-          selectedMimeType = type;
-          break;
-        }
-      }
-
-      try {
-        const options = selectedMimeType ? { mimeType: selectedMimeType } : {};
-        videoRecorder = new MediaRecorder(videoStream, options);
-      } catch (e) {
-        videoRecorder = new MediaRecorder(videoStream);
-      }
-
-      videoRecorder.ondataavailable = (e) => { 
-        if (e.data && e.data.size > 0) recordedVideoChunks.push(e.data); 
-      };
-
-      videoRecorder.onstop = () => {
-        const blob = new Blob(recordedVideoChunks, { type: videoRecorder.mimeType || 'video/webm' });
-        const objectUrl = URL.createObjectURL(blob);
-        const newItem = { id: Date.now(), blob: blob, date: getFormattedTimestamp() };
-        
-        saveToDB('videos', newItem, () => {
-          videos.unshift({ id: newItem.id, blob: blob, src: objectUrl, date: newItem.date });
-          renderVideos();
-        });
-      };
-
-      videoRecorder.start();
-      document.getElementById('videoRecStatus').classList.remove('hidden');
-      document.getElementById('startVideoRecBtn').classList.add('hidden');
-      document.getElementById('stopVideoRecBtn').classList.remove('hidden');
-    }
-    function stopVideoRecording() {
-      if (videoRecorder && videoRecorder.state !== 'inactive') videoRecorder.stop();
-      closeVideoModal();
-    }
-
-    function handlePhotoUpload(e) {
-      const file = e.target.files[0]; if (!file) return;
+    async function handleMediaUpload(e, type) {
+      const file = e.target.files[0];
+      if (!file) return;
       const reader = new FileReader();
-      reader.onload = (event) => {
-        const newPhoto = { id: Date.now(), src: event.target.result, date: getFormattedTimestamp() };
-        saveToDB('photos', newPhoto, () => { photos.unshift(newPhoto); renderPhotos(); });
+      reader.onload = async (event) => {
+        const newItem = { id: Date.now(), type: type, data_url: event.target.result, date: getFormattedTimestamp() };
+        await supabaseClient.from('boveda_media').insert([newItem]);
+        if (type === 'photo') { photos.unshift(newItem); renderPhotos(); }
+        else if (type === 'video') { videos.unshift(newItem); renderVideos(); }
       };
-      reader.readAsDataURL(file); e.target.value = '';
-    }
-    function handleVideoUpload(e) {
-      const file = e.target.files[0]; if (!file) return;
-      const objectUrl = URL.createObjectURL(file);
-      const newItem = { id: Date.now(), blob: file, date: getFormattedTimestamp() };
-      saveToDB('videos', newItem, () => {
-        videos.unshift({ id: newItem.id, blob: file, src: objectUrl, date: newItem.date });
-        renderVideos();
-      });
+      reader.readAsDataURL(file);
       e.target.value = '';
     }
-    function handleRightClick(e) {
-      if (document.getElementById('editModal').classList.contains('active')) { e.preventDefault(); closeModal(); }
-      else if (document.getElementById('mediaViewerModal').classList.contains('active')) { e.preventDefault(); closeMediaViewer(); }
-      else if (document.getElementById('webcamModal').classList.contains('active')) { e.preventDefault(); closeWebcamModal(); }
-      else if (document.getElementById('videoModal').classList.contains('active')) { e.preventDefault(); closeVideoModal(); }
-      else if (document.getElementById('recoveryModal').classList.contains('active')) { e.preventDefault(); closeRecoveryModal(); }
-      else if (document.getElementById('customAlertModal').classList.contains('active')) { e.preventDefault(); closeCustomAlert(); }
-    }
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') { closeModal(); closeMediaViewer(); closeWebcamModal(); closeVideoModal(); closeRecoveryModal(); closeCustomAlert(); }
-    });
-    window.addEventListener('paste', (e) => {
-      if (document.getElementById('editModal').classList.contains('active') || document.getElementById('mediaViewerModal').classList.contains('active')) return;
-      const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-      for (let item of items) {
-        if (item.type.indexOf('image') !== -1) {
-          const blob = item.getAsFile(), reader = new FileReader();
-          reader.onload = (ev) => {
-            const newPhoto = { id: Date.now(), src: ev.target.result, date: getFormattedTimestamp() };
-            saveToDB('photos', newPhoto, () => { photos.unshift(newPhoto); renderPhotos(); });
-          };
-          reader.readAsDataURL(blob);
-        }
-      }
-    });
 
     // --- GRABADORA DE AUDIO ---
     async function toggleRecording() {
       if (!isRecording) {
         try {
-          const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          mediaRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm;codecs=opus' });
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
           audioChunks = [];
-          
           mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
-          
-          mediaRecorder.onstop = () => {
-            audioStream.getTracks().forEach(track => track.stop());
-
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
-            const objectUrl = URL.createObjectURL(audioBlob);
-            const newItem = { id: Date.now(), blob: audioBlob, date: getFormattedTimestamp() };
-            
-            saveToDB('audios', newItem, () => {
-              audios.unshift({ id: newItem.id, blob: audioBlob, src: objectUrl, date: newItem.date });
+          mediaRecorder.onstop = async () => {
+            stream.getTracks().forEach(track => track.stop());
+            const blob = new Blob(audioChunks, { type: 'audio/webm' });
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+              const newItem = { id: Date.now(), type: 'audio', data_url: e.target.result, date: getFormattedTimestamp() };
+              await supabaseClient.from('boveda_media').insert([newItem]);
+              audios.unshift(newItem);
               renderAudios();
-            });
+            };
+            reader.readAsDataURL(blob);
           };
-
-          mediaRecorder.start(); 
+          mediaRecorder.start();
           isRecording = true;
-          document.getElementById('recordingStatus').classList.remove('hidden');
           document.getElementById('recordBtnText').textContent = 'Detener';
-          document.getElementById('recordBtn').classList.replace('bg-brand-600', 'bg-red-600');
-          document.getElementById('recordIcon').classList.replace('fa-circle-dot', 'fa-stop');
         } catch (err) { showCustomAlert('No se pudo acceder al micrófono.'); }
       } else {
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-          mediaRecorder.stop();
-        }
+        if (mediaRecorder) mediaRecorder.stop();
         isRecording = false;
-        document.getElementById('recordingStatus').classList.add('hidden');
         document.getElementById('recordBtnText').textContent = 'Grabar Audio';
-        document.getElementById('recordBtn').classList.replace('bg-red-600', 'bg-brand-600');
-        document.getElementById('recordIcon').classList.replace('fa-stop', 'fa-circle-dot');
       }
     }
 
-    function deleteAudio(id) {
-      const item = audios.find(a => a.id === id);
-      if (item) { trashAudios.unshift(item); saveToDB('trash_audios', item); }
-      deleteFromDB('audios', id, () => { audios = audios.filter(a => a.id !== id); renderAudios(); });
+    async function deleteNote(id) {
+      const note = notes.find(n => n.id === id);
+      if (note) {
+        await supabaseClient.from('boveda_trash').insert([{ id: note.id, item_type: 'note', content: note.content, date: note.date }]);
+      }
+      await supabaseClient.from('boveda_notes').delete().eq('id', id);
+      notes = notes.filter(n => n.id !== id);
+      renderNotes();
+      fetchAllDataFromSupabase();
     }
+
     function renderNotes() {
       const container = document.getElementById('notesContainer');
       if (!container) return;
-      if (notes.length === 0) { container.innerHTML = `<p class="text-slate-500 text-sm py-4">No hay notas guardadas aún.</p>`; return; }
-      container.innerHTML = notes.map(n => `<div onclick="openEditModal(${n.id})" class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-sm hover:border-slate-700 cursor-pointer transition-all flex flex-col justify-between h-40 w-[260px] group hover:-translate-y-1"><p class="text-sm text-slate-300 line-clamp-4 whitespace-pre-wrap">${escapeHtml(n.content)}</p><div class="flex items-center justify-between text-xs text-slate-500 border-t border-slate-800/80 pt-2 mt-2 group-hover:border-brand-500/50"><span>${n.date}</span><div class="flex gap-2"><button onclick="copyToClipboard(\`\${escapeHtml(n.content)}\`, event)" class="hover:text-brand-500 p-1" title="Copiar"><i class="fa-solid fa-copy"></i></button><button onclick="deleteNote(${n.id}, event)" class="hover:text-red-500 p-1" title="Eliminar"><i class="fa-solid fa-trash"></i></button></div></div></div>`).join('');
+      if (notes.length === 0) { container.innerHTML = `<p class="text-slate-500 text-sm py-4">No hay notas guardadas.</p>`; return; }
+      container.innerHTML = notes.map(n => `<div onclick="openEditModal(${n.id})" class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-sm cursor-pointer h-40 w-[260px] flex flex-col justify-between"><p class="text-sm text-slate-300 line-clamp-4">${escapeHtml(n.content)}</p><div class="flex justify-between items-center text-xs text-slate-500 pt-2 border-t border-slate-800"><span>${n.date}</span><button onclick="deleteNote(${n.id}, event)" class="hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div></div>`).join('');
     }
     function renderPhotos() {
       const container = document.getElementById('photosContainer');
       if (!container) return;
-      if (photos.length === 0) { container.innerHTML = `<p class="text-slate-500 text-sm py-4">No hay fotos guardadas.</p>`; return; }
-      container.innerHTML = photos.map(photo => `<div class="bg-slate-900 border border-slate-800 p-3.5 rounded-xl flex flex-col justify-between gap-3 shadow-sm h-56 w-[220px]"><div class="flex items-center justify-between text-[11px] text-slate-400"><span><i class="fa-solid fa-image text-brand-500 mr-1"></i> Foto</span><span>${photo.date.split(',')[0]}</span></div><div onclick="openMediaViewer('${photo.src}', 'photo', event)" class="relative group rounded-lg overflow-hidden border border-slate-800 bg-slate-950 h-28 cursor-pointer flex items-center justify-center"><img src="${photo.src}" class="w-full h-full object-cover"><div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><i class="fa-solid fa-magnifying-glass-plus text-lg text-white"></i></div></div><div class="flex items-center justify-between gap-2 pt-1"><a href="${photo.src}" download="boveda-foto.jpg" onclick="event.stopPropagation()" class="flex-1 text-[11px] text-brand-400 hover:text-brand-300 flex items-center justify-center gap-1 px-2 py-1.5 bg-brand-500/10 hover:bg-brand-500/20 rounded-lg transition"><i class="fa-solid fa-download"></i> Descargar</a><button onclick="deletePhoto(${photo.id}, event)" class="text-[11px] text-red-400 hover:text-red-300 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition"><i class="fa-solid fa-trash-can"></i> Eliminar</button></div></div>`).join('');
+      if (photos.length === 0) { container.innerHTML = `<p class="text-slate-500 text-sm py-4">No hay fotos.</p>`; return; }
+      container.innerHTML = photos.map(p => `<div class="bg-slate-900 border border-slate-800 p-3 rounded-xl h-56 w-[220px] flex flex-col justify-between"><img src="${p.data_url}" class="w-full h-28 object-cover rounded-lg cursor-pointer" onclick="openMediaViewer('${p.data_url}', 'photo')"><button onclick="deleteMedia(${p.id}, 'photo')" class="text-xs text-red-400 bg-red-500/10 py-1 rounded-lg">Eliminar</button></div>`).join('');
     }
     function renderVideos() {
       const container = document.getElementById('videosContainer');
       if (!container) return;
-      if (videos.length === 0) { container.innerHTML = `<p class="text-slate-500 text-sm py-4">No hay videos guardados.</p>`; return; }
-      container.innerHTML = videos.map(video => `<div class="bg-slate-900 border border-slate-800 p-3.5 rounded-xl flex flex-col justify-between gap-3 shadow-sm h-56 w-[220px]"><div class="flex items-center justify-between text-[11px] text-slate-400"><span><i class="fa-solid fa-video text-brand-500 mr-1"></i> Video</span><span>${video.date.split(',')[0]}</span></div><div onclick="openMediaViewer('${video.src}', 'video', event)" class="relative group rounded-lg overflow-hidden border border-slate-800 bg-slate-950 h-28 cursor-pointer flex items-center justify-center"><video src="${video.src}" class="w-full h-full object-cover"></video><div class="absolute inset-0 flex items-center justify-center bg-black/40"><i class="fa-solid fa-play text-lg text-white"></i></div><div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><i class="fa-solid fa-magnifying-glass-plus text-lg text-white"></i></div></div><div class="flex items-center justify-between gap-2 pt-1"><a href="${video.src}" download="boveda-video.webm" onclick="event.stopPropagation()" class="flex-1 text-[11px] text-brand-400 hover:text-brand-300 flex items-center justify-center gap-1 px-2 py-1.5 bg-brand-500/10 hover:bg-brand-500/20 rounded-lg transition"><i class="fa-solid fa-download"></i> Descargar</a><button onclick="deleteVideo(${video.id}, event)" class="text-[11px] text-red-400 hover:text-red-300 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition"><i class="fa-solid fa-trash-can"></i> Eliminar</button></div></div>`).join('');
+      if (videos.length === 0) { container.innerHTML = `<p class="text-slate-500 text-sm py-4">No hay videos.</p>`; return; }
+      container.innerHTML = videos.map(v => `<div class="bg-slate-900 border border-slate-800 p-3 rounded-xl h-56 w-[220px] flex flex-col justify-between"><video src="${v.data_url}" class="w-full h-28 object-cover rounded-lg"></video><button onclick="deleteMedia(${v.id}, 'video')" class="text-xs text-red-400 bg-red-500/10 py-1 rounded-lg">Eliminar</button></div>`).join('');
     }
     function renderAudios() {
       const container = document.getElementById('audiosContainer');
       if (!container) return;
-      if (audios.length === 0) { container.innerHTML = `<p class="text-slate-500 text-sm py-4">No hay audios grabados aún.</p>`; return; }
-      container.innerHTML = audios.map(aud => `<div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col justify-between gap-3 shadow-sm h-36 w-[300px]"><div class="flex items-center justify-between text-xs text-slate-400"><span><i class="fa-solid fa-microphone-lines text-brand-500 mr-1"></i> Nota de voz</span><span>${aud.date}</span></div><audio controls src="${aud.src}" class="w-full h-8 accent-brand-500"></audio><div class="flex z-10 justify-end"><button onclick="deleteAudio(${aud.id})" class="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition"><i class="fa-solid fa-trash-can"></i> Eliminar</button></div></div>`).join('');
+      if (audios.length === 0) { container.innerHTML = `<p class="text-slate-500 text-sm py-4">No hay audios.</p>`; return; }
+      container.innerHTML = audios.map(a => `<div class="bg-slate-900 border border-slate-800 p-4 rounded-xl h-36 w-[300px] flex flex-col justify-between"><audio controls src="${a.data_url}" class="w-full h-8"></audio><button onclick="deleteMedia(${a.id}, 'audio')" class="text-xs text-red-400 bg-red-500/10 py-1 rounded-lg">Eliminar</button></div>`).join('');
     }
-    function escapeHtml(str) {
-      if (!str) return '';
-      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+
+    async function deleteMedia(id, type) {
+      await supabaseClient.from('boveda_media').delete().eq('id', id);
+      fetchAllDataFromSupabase();
     }
+
+    function renderTrashContent() {
+      const trashContent = document.getElementById('trashContent');
+      trashContent.innerHTML = trash.map(t => `<div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-300">Eliminado: ${t.date}</div>`).join('') || '<p class="text-slate-500 text-xs">Vacío</p>';
+    }
+
+    function toggleTrashDrawer(e) { e.stopPropagation(); document.getElementById('trashDrawer').classList.toggle('-translate-x-full'); }
+    function showCustomAlert(msg) { document.getElementById('customAlertText').textContent = msg; document.getElementById('customAlertModal').classList.add('active'); }
+    function closeCustomAlert() { document.getElementById('customAlertModal').classList.remove('active'); }
+    function openMediaViewer(src, type) {
+      document.getElementById('mediaViewerWrapper').innerHTML = `<img src="${src}" class="w-full h-full object-contain">`;
+      document.getElementById('mediaViewerModal').classList.add('active');
+    }
+    function closeMediaViewer() { document.getElementById('mediaViewerModal').classList.remove('active'); }
+    function openEditModal(id) { currentEditingId = id; document.getElementById('editModal').classList.add('active'); }
+    function closeModal() { document.getElementById('editModal').classList.remove('active'); }
+    async function saveModalEdit() {
+      const newText = document.getElementById('modalTextarea').value;
+      await supabaseClient.from('boveda_notes').update({ content: newText }).eq('id', currentEditingId);
+      closeModal();
+      fetchAllDataFromSupabase();
+    }
+    function escapeHtml(str) { return str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : ''; }
   </script>
 </body>
 </html>
