@@ -4,13 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mi Panel Personal - Notas, Fotos, Videos y Audios</title>
-  <meta name="google-site-verification" content="iSBRGmgad7JuhmKG2xEutTEKJuQoLeLz_SaynXa3Wrk" />
+  <meta name="google-site-verification" content="google4ba2e01c1d08d4d4" />
   <!-- Iconos para accesos directos y PWA -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%230ea5e9' d='M64 32C28.7 32 0 60.7 0 96L0 416c0 35.3 28.7 64 64 64l384 0c35.3 0 64-28.7 64-64l0-320c0-35.3-28.7-64-64-64L64 32zm224 160c8.8 0 16 7.2 16 16s-7.2 16-16 16l-96 0c-8.8 0-16-7.2-16-16s7.2-16 16-16l96 0zM192 288c-8.8 0-16 7.2-16 16s7.2 16 16 16l96 0c8.8 0 16-7.2 16-16s-7.2-16-16-16l-96 0z'/%3E%3C/svg%3E">
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230f172a'/%3E%3Cpath fill='%230ea5e9' d='M128 128C92.7 128 64 156.7 64 192l0 128c0 35.3 28.7 64 64 64l256 0c35.3 0 64-28.7 64-64l0-128c0-35.3-28.7-64-64-64L128 128zm192 80c17.7 0 32 14.3 32 32s-14.3 32-32 32l-96 0c-17.7 0-32-14.3-32-32s14.3-32 32-32l96 0zm-64 96c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0z'/%3E%3C/svg%3E">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  
+  <!-- Librerías Web de Google Firebase (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+
   <script>
     tailwind.config = { darkMode: 'class', theme: { extend: { colors: { brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1' } } } } }
   </script>
@@ -349,69 +356,68 @@
   </div>
 
   <script>
-    let db, notes = JSON.parse(localStorage.getItem('user_notes') || '[]'), photos = [], videos = [], audios = [];
-    let trashNotes = JSON.parse(localStorage.getItem('trash_notes') || '[]'), trashPhotos = JSON.parse(localStorage.getItem('trash_photos') || '[]'), trashVideos = JSON.parse(localStorage.getItem('trash_videos') || '[]'), trashAudios = JSON.parse(localStorage.getItem('trash_audios') || '[]');
+    // --- CONFIGURACIÓN DE FIREBASE ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyDST5FR0nUFi01f6kkWDE9f6dvOvEnL6YU",
+      authDomain: "mibovedawebmovil.firebaseapp.com",
+      projectId: "mibovedawebmovil",
+      storageBucket: "mibovedawebmovil.firebasestorage.app",
+      messagingSenderId: "147138300543",
+      appId: "1:147138300543:web:eccfce86d7cd99bc480d4a",
+      measurementId: "G-HM4CMGLW4X"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+    const auth = firebase.auth();
+
+    // --- VARIABLES GLOBALES ---
+    let notes = [], photos = [], videos = [], audios = [];
+    let trashNotes = JSON.parse(localStorage.getItem('trash_notes') || '[]'), trashPhotos = [], trashVideos = [], trashAudios = [];
     let currentEditingId = null, loginAttempts = 3;
     let mediaRecorder = null, audioChunks = [], isRecording = false;
     let webcamStream = null, videoStream = null, videoRecorder = null, recordedVideoChunks = [];
 
-    const requestDB = indexedDB.open('MiBovedaMediaDB', 5);
-    requestDB.onupgradeneeded = (e) => {
-      db = e.target.result;
-      if (!db.objectStoreNames.contains('photos')) db.createObjectStore('photos', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('videos')) db.createObjectStore('videos', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('audios')) db.createObjectStore('audios', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('trash_photos')) db.createObjectStore('trash_photos', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('trash_videos')) db.createObjectStore('trash_videos', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('trash_audios')) db.createObjectStore('trash_audios', { keyPath: 'id' });
-    };
-    requestDB.onsuccess = (e) => { db = e.target.result; loadAllMediaFromDB(); };
-    requestDB.onerror = () => { renderPhotos(); renderVideos(); renderAudios(); };
+    // Escuchar actualizaciones en tiempo real desde la nube de Google
+    db.collection('notes').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+      notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      renderNotes();
+    });
 
-    function loadAllMediaFromDB() {
-      loadStoreData('photos', (items) => { photos = items; renderPhotos(); });
-      loadStoreData('videos', (items) => { 
-        videos = items.map(v => ({ ...v, src: v.blob ? URL.createObjectURL(v.blob) : v.src })); 
-        renderVideos(); 
-      });
-      loadStoreData('audios', (items) => { 
-        audios = items.map(a => ({ ...a, src: a.blob ? URL.createObjectURL(a.blob) : a.src })); 
-        renderAudios(); 
-      });
-      loadStoreData('trash_photos', (items) => { trashPhotos = items; });
-      loadStoreData('trash_videos', (items) => { trashVideos = items; });
-      loadStoreData('trash_audios', (items) => { trashAudios = items; });
-    }
-    function loadStoreData(storeName, callback) {
-      if (!db) { callback([]); return; }
+    db.collection('photos').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+      photos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      renderPhotos();
+    });
+
+    db.collection('videos').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+      videos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      renderVideos();
+    });
+
+    db.collection('audios').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+      audios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      renderAudios();
+    });
+
+    // Subir archivos multimedia (Fotos, Videos, Audios) a Google Firebase Storage
+    async function uploadMediaToCloud(fileOrBlob, folderName) {
       try {
-        const transaction = db.transaction(storeName, 'readonly');
-        const store = transaction.objectStore(storeName);
-        const request = store.getAll();
-        request.onsuccess = () => { callback((request.result || []).sort((a, b) => b.id - a.id)); };
-        request.onerror = () => { callback([]); };
-      } catch (err) { callback([]); }
+        const fileName = `${folderName}/${Date.now()}_media`;
+        const storageRef = storage.ref(fileName);
+        const snapshot = await storageRef.put(fileOrBlob);
+        const downloadURL = await snapshot.ref.getDownloadURL();
+
+        await db.collection(folderName).add({
+          src: downloadURL,
+          date: getFormattedTimestamp(),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch (err) {
+        showCustomAlert('Error al subir archivo a la nube: ' + err.message);
+      }
     }
-    function saveToDB(storeName, item, callback) {
-      if (!db) { if (callback) callback(); return; }
-      try {
-        const transaction = db.transaction(storeName, 'readwrite');
-        const store = transaction.objectStore(storeName);
-        store.put(item);
-        transaction.oncomplete = () => { if (callback) callback(); };
-        transaction.onerror = () => { if (callback) callback(); };
-      } catch (err) { if (callback) callback(); }
-    }
-    function deleteFromDB(storeName, id, callback) {
-      if (!db) { if (callback) callback(); return; }
-      try {
-        const transaction = db.transaction(storeName, 'readwrite');
-        const store = transaction.objectStore(storeName);
-        store.delete(id);
-        transaction.oncomplete = () => { if (callback) callback(); };
-        transaction.onerror = () => { if (callback) callback(); };
-      } catch (err) { if (callback) callback(); }
-    }
+
     function showCustomAlert(message) {
       document.getElementById('customAlertText').textContent = message;
       document.getElementById('customAlertModal').classList.add('active');
@@ -513,7 +519,6 @@
       } else { showCustomAlert('Una o ambas respuestas de seguridad son incorrectas.'); }
     }
     
-    // FUNCIÓN DE SALIDA CORREGIDA
     function handleLogout() {
       sessionStorage.removeItem('user_session');
       document.getElementById('appView').style.display = 'none';
@@ -546,24 +551,29 @@
       const now = new Date();
       return now.toLocaleDateString() + ', ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
-    function saveQuickNote() {
+
+    // --- NOTAS EN FIRESTORE ---
+    async function saveQuickNote() {
       const text = document.getElementById('quickText').value.trim();
       if (!text) return;
-      notes.unshift({ id: Date.now(), content: text, date: getFormattedTimestamp() });
+
       try {
-        localStorage.setItem('user_notes', JSON.stringify(notes));
+        await db.collection('notes').add({
+          content: text,
+          date: getFormattedTimestamp(),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
         document.getElementById('quickText').value = '';
-        renderNotes();
-      } catch (err) { showCustomAlert('Almacenamiento local lleno.'); notes.shift(); }
+      } catch (err) {
+        showCustomAlert('Error al conectar con la nube de Google: ' + err.message);
+      }
     }
     function clearQuickText() { document.getElementById('quickText').value = ''; }
-    function deleteNote(id, event) {
+    async function deleteNote(id, event) {
       if (event) event.stopPropagation();
       const noteToTrash = notes.find(n => n.id === id);
       if (noteToTrash) { trashNotes.unshift(noteToTrash); localStorage.setItem('trash_notes', JSON.stringify(trashNotes)); }
-      notes = notes.filter(n => n.id !== id);
-      localStorage.setItem('user_notes', JSON.stringify(notes));
-      renderNotes();
+      await db.collection('notes').doc(id).delete();
     }
     function copyToClipboard(text, event) {
       if (event) event.stopPropagation();
@@ -578,15 +588,11 @@
       document.getElementById('editModal').classList.add('active');
     }
     function closeModal() { document.getElementById('editModal').classList.remove('active'); currentEditingId = null; }
-    function saveModalEdit() {
+    async function saveModalEdit() {
       if (!currentEditingId) return;
       const newText = document.getElementById('modalTextarea').value.trim();
-      notes = notes.map(n => n.id === currentEditingId ? { ...n, content: newText } : n);
-      try {
-        localStorage.setItem('user_notes', JSON.stringify(notes));
-        renderNotes();
-        closeModal();
-      } catch (err) { showCustomAlert('Almacenamiento local lleno.'); }
+      await db.collection('notes').doc(currentEditingId).update({ content: newText });
+      closeModal();
     }
     function copyModalContent() {
       navigator.clipboard.writeText(document.getElementById('modalTextarea').value);
@@ -606,29 +612,13 @@
       document.getElementById('mediaViewerModal').classList.remove('active');
       document.getElementById('mediaViewerWrapper').innerHTML = '';
     }
-    function deletePhoto(id, event) {
+    async function deletePhoto(id, event) {
       if (event) event.stopPropagation();
-      const item = photos.find(p => p.id === id);
-      if (item) {
-        trashPhotos.unshift(item);
-        saveToDB('trash_photos', item, () => {});
-      }
-      deleteFromDB('photos', id, () => {
-        photos = photos.filter(p => p.id !== id);
-        renderPhotos();
-      });
+      await db.collection('photos').doc(id).delete();
     }
-    function deleteVideo(id, event) {
+    async function deleteVideo(id, event) {
       if (event) event.stopPropagation();
-      const item = videos.find(v => v.id === id);
-      if (item) {
-        trashVideos.unshift(item);
-        saveToDB('trash_videos', item, () => {});
-      }
-      deleteFromDB('videos', id, () => {
-        videos = videos.filter(v => v.id !== id);
-        renderVideos();
-      });
+      await db.collection('videos').doc(id).delete();
     }
     function renderTrashContent() {
       const trashContent = document.getElementById('trashContent');
@@ -636,23 +626,12 @@
       let html = '';
       
       trashNotes.forEach(n => {
-        html += `<div class="bg-slate-950 p-3 rounded-xl border border-slate-800 shadow-sm flex flex-col justify-between gap-2"><p class="text-xs text-slate-300 line-clamp-2 whitespace-pre-wrap">${escapeHtml(n.content)}</p><div class="flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-800/80 pt-1.5"><span class="text-slate-400">Nota</span><button onclick="restoreTrashItem(${n.id}, 'note')" class="text-brand-400 hover:text-brand-300 font-medium"><i class="fa-solid fa-rotate-left"></i> Restaurar</button></div></div>`;
-      });
-      trashPhotos.forEach(p => {
-        html += `<div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex items-center gap-3"><img src="${p.src}" class="w-12 h-12 rounded-lg object-cover"><div class="flex-1 flex items-center justify-between"><span class="text-xs text-slate-400">Foto</span><button onclick="restoreTrashItem(${p.id}, 'photo')" class="px-2.5 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-[10px] font-medium shadow"><i class="fa-solid fa-rotate-left"></i> Restaurar</button></div></div>`;
-      });
-      trashVideos.forEach(v => {
-        const vSrc = v.blob ? URL.createObjectURL(v.blob) : v.src;
-        html += `<div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex items-center gap-3"><video src="${vSrc}" class="w-12 h-12 rounded-lg object-cover"></video><div class="flex-1 flex items-center justify-between"><span class="text-xs text-slate-400">Video</span><button onclick="restoreTrashItem(${v.id}, 'video')" class="px-2.5 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-[10px] font-medium shadow"><i class="fa-solid fa-rotate-left"></i> Restaurar</button></div></div>`;
-      });
-      trashAudios.forEach(aud => {
-        const aSrc = aud.blob ? URL.createObjectURL(aud.blob) : aud.src;
-        html += `<div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex flex-col gap-2"><div class="flex items-center justify-between text-xs text-slate-400"><span><i class="fa-solid fa-microphone-lines text-brand-500"></i> Audio</span><button onclick="restoreTrashItem(${aud.id}, 'audio')" class="text-brand-400 hover:text-brand-300 text-[11px]"><i class="fa-solid fa-rotate-left"></i> Restaurar</button></div><audio controls src="${aSrc}" class="w-full h-7 accent-brand-500"></audio></div>`;
+        html += `<div class="bg-slate-950 p-3 rounded-xl border border-slate-800 shadow-sm flex flex-col justify-between gap-2"><p class="text-xs text-slate-300 line-clamp-2 whitespace-pre-wrap">${escapeHtml(n.content)}</p><div class="flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-800/80 pt-1.5"><span class="text-slate-400">Nota</span><button onclick="restoreTrashItem('${n.id}', 'note')" class="text-brand-400 hover:text-brand-300 font-medium"><i class="fa-solid fa-rotate-left"></i> Restaurar</button></div></div>`;
       });
       
       trashContent.innerHTML = html || '<p class="text-slate-500 text-xs text-center py-6">El tacho está vacío.</p>';
 
-      const hasItems = trashNotes.length > 0 || trashPhotos.length > 0 || trashVideos.length > 0 || trashAudios.length > 0;
+      const hasItems = trashNotes.length > 0;
       if (hasItems) {
         emptyTrashBtn.classList.remove('hidden');
       } else {
@@ -663,51 +642,24 @@
     function restoreTrashItem(id, type) {
       if (type === 'note') {
         const item = trashNotes.find(n => n.id === id);
-        if (item) { notes.unshift(item); localStorage.setItem('user_notes', JSON.stringify(notes)); trashNotes = trashNotes.filter(n => n.id !== id); localStorage.setItem('trash_notes', JSON.stringify(trashNotes)); renderNotes(); }
-      } else if (type === 'photo') {
-        const item = trashPhotos.find(p => p.id === id);
-        if (item) { photos.unshift(item); saveToDB('photos', item); trashPhotos = trashPhotos.filter(p => p.id !== id); deleteFromDB('trash_photos', id); renderPhotos(); }
-      } else if (type === 'video') {
-        const item = trashVideos.find(v => v.id === id);
         if (item) { 
-          const cleanItem = { id: item.id, blob: item.blob, date: item.date };
-          videos.unshift({ ...cleanItem, src: URL.createObjectURL(item.blob) }); 
-          saveToDB('videos', cleanItem); 
-          trashVideos = trashVideos.filter(v => v.id !== id); 
-          deleteFromDB('trash_videos', id); 
-          renderVideos(); 
-        }
-      } else if (type === 'audio') {
-        const item = trashAudios.find(a => a.id === id);
-        if (item) { 
-          const cleanItem = { id: item.id, blob: item.blob, date: item.date };
-          audios.unshift({ ...cleanItem, src: URL.createObjectURL(item.blob) }); 
-          saveToDB('audios', cleanItem); 
-          trashAudios = trashAudios.filter(a => a.id !== id); 
-          deleteFromDB('trash_audios', id); 
-          renderAudios(); 
+          db.collection('notes').add({ content: item.content, date: item.date, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+          trashNotes = trashNotes.filter(n => n.id !== id); 
+          localStorage.setItem('trash_notes', JSON.stringify(trashNotes)); 
         }
       }
       renderTrashContent();
     }
-    function showTrashConfirm() {
-      document.getElementById('trashConfirmBox').classList.remove('hidden');
-    }
-    function hideTrashConfirm() {
-      document.getElementById('trashConfirmBox').classList.add('hidden');
-    }
+    function showTrashConfirm() { document.getElementById('trashConfirmBox').classList.remove('hidden'); }
+    function hideTrashConfirm() { document.getElementById('trashConfirmBox').classList.add('hidden'); }
     function emptyTrashPermanently() {
-      trashNotes = []; trashPhotos = []; trashVideos = []; trashAudios = [];
+      trashNotes = [];
       localStorage.removeItem('trash_notes');
-      ['trash_photos', 'trash_videos', 'trash_audios'].forEach(storeName => {
-        const transaction = db.transaction(storeName, 'readwrite');
-        transaction.objectStore(storeName).clear();
-      });
       hideTrashConfirm();
       renderTrashContent();
     }
 
-    // --- FOTO ---
+    // --- MULTIMEDIA CON LA NUBE ---
     async function openWebcamCapture() {
       if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
         const input = document.createElement('input'); 
@@ -739,13 +691,12 @@
       const videoElem = document.getElementById('webcamVideo'), canvas = document.createElement('canvas');
       canvas.width = videoElem.videoWidth || 1280; canvas.height = videoElem.videoHeight || 720;
       const ctx = canvas.getContext('2d'); ctx.drawImage(videoElem, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      const newPhoto = { id: Date.now(), src: dataUrl, date: getFormattedTimestamp() };
-      saveToDB('photos', newPhoto, () => { photos.unshift(newPhoto); renderPhotos(); });
+      canvas.toBlob(blob => {
+        uploadMediaToCloud(blob, 'photos');
+      }, 'image/jpeg', 0.85);
       closeWebcamModal();
     }
 
-    // --- GRABADORA DE VÍDEO CON BLOB Y OBJECTURL ---
     async function openVideoRecorderModal() {
       if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
         const input = document.createElement('input'); 
@@ -817,13 +768,7 @@
 
       videoRecorder.onstop = () => {
         const blob = new Blob(recordedVideoChunks, { type: videoRecorder.mimeType || 'video/webm' });
-        const objectUrl = URL.createObjectURL(blob);
-        const newItem = { id: Date.now(), blob: blob, date: getFormattedTimestamp() };
-        
-        saveToDB('videos', newItem, () => {
-          videos.unshift({ id: newItem.id, blob: blob, src: objectUrl, date: newItem.date });
-          renderVideos();
-        });
+        uploadMediaToCloud(blob, 'videos');
       };
 
       videoRecorder.start();
@@ -838,21 +783,12 @@
 
     function handlePhotoUpload(e) {
       const file = e.target.files[0]; if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const newPhoto = { id: Date.now(), src: event.target.result, date: getFormattedTimestamp() };
-        saveToDB('photos', newPhoto, () => { photos.unshift(newPhoto); renderPhotos(); });
-      };
-      reader.readAsDataURL(file); e.target.value = '';
+      uploadMediaToCloud(file, 'photos');
+      e.target.value = '';
     }
     function handleVideoUpload(e) {
       const file = e.target.files[0]; if (!file) return;
-      const objectUrl = URL.createObjectURL(file);
-      const newItem = { id: Date.now(), blob: file, date: getFormattedTimestamp() };
-      saveToDB('videos', newItem, () => {
-        videos.unshift({ id: newItem.id, blob: file, src: objectUrl, date: newItem.date });
-        renderVideos();
-      });
+      uploadMediaToCloud(file, 'videos');
       e.target.value = '';
     }
     function handleRightClick(e) {
@@ -871,17 +807,13 @@
       const items = (e.clipboardData || e.originalEvent.clipboardData).items;
       for (let item of items) {
         if (item.type.indexOf('image') !== -1) {
-          const blob = item.getAsFile(), reader = new FileReader();
-          reader.onload = (ev) => {
-            const newPhoto = { id: Date.now(), src: ev.target.result, date: getFormattedTimestamp() };
-            saveToDB('photos', newPhoto, () => { photos.unshift(newPhoto); renderPhotos(); });
-          };
-          reader.readAsDataURL(blob);
+          const blob = item.getAsFile();
+          uploadMediaToCloud(blob, 'photos');
         }
       }
     });
 
-    // --- GRABADORA DE AUDIO ---
+    // --- AUDIOS EN LA NUBE ---
     async function toggleRecording() {
       if (!isRecording) {
         try {
@@ -893,15 +825,8 @@
           
           mediaRecorder.onstop = () => {
             audioStream.getTracks().forEach(track => track.stop());
-
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
-            const objectUrl = URL.createObjectURL(audioBlob);
-            const newItem = { id: Date.now(), blob: audioBlob, date: getFormattedTimestamp() };
-            
-            saveToDB('audios', newItem, () => {
-              audios.unshift({ id: newItem.id, blob: audioBlob, src: objectUrl, date: newItem.date });
-              renderAudios();
-            });
+            uploadMediaToCloud(audioBlob, 'audios');
           };
 
           mediaRecorder.start(); 
@@ -923,34 +848,32 @@
       }
     }
 
-    function deleteAudio(id) {
-      const item = audios.find(a => a.id === id);
-      if (item) { trashAudios.unshift(item); saveToDB('trash_audios', item); }
-      deleteFromDB('audios', id, () => { audios = audios.filter(a => a.id !== id); renderAudios(); });
+    async function deleteAudio(id) {
+      await db.collection('audios').doc(id).delete();
     }
     function renderNotes() {
       const container = document.getElementById('notesContainer');
       if (!container) return;
       if (notes.length === 0) { container.innerHTML = `<p class="text-slate-500 text-sm py-4">No hay notas guardadas aún.</p>`; return; }
-      container.innerHTML = notes.map(n => `<div onclick="openEditModal(${n.id})" class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-sm hover:border-slate-700 cursor-pointer transition-all flex flex-col justify-between h-40 w-[260px] group hover:-translate-y-1"><p class="text-sm text-slate-300 line-clamp-4 whitespace-pre-wrap">${escapeHtml(n.content)}</p><div class="flex items-center justify-between text-xs text-slate-500 border-t border-slate-800/80 pt-2 mt-2 group-hover:border-brand-500/50"><span>${n.date}</span><div class="flex gap-2"><button onclick="copyToClipboard(\`\${escapeHtml(n.content)}\`, event)" class="hover:text-brand-500 p-1" title="Copiar"><i class="fa-solid fa-copy"></i></button><button onclick="deleteNote(${n.id}, event)" class="hover:text-red-500 p-1" title="Eliminar"><i class="fa-solid fa-trash"></i></button></div></div></div>`).join('');
+      container.innerHTML = notes.map(n => `<div onclick="openEditModal('${n.id}')" class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-sm hover:border-slate-700 cursor-pointer transition-all flex flex-col justify-between h-40 w-[260px] group hover:-translate-y-1"><p class="text-sm text-slate-300 line-clamp-4 whitespace-pre-wrap">${escapeHtml(n.content)}</p><div class="flex items-center justify-between text-xs text-slate-500 border-t border-slate-800/80 pt-2 mt-2 group-hover:border-brand-500/50"><span>${n.date}</span><div class="flex gap-2"><button onclick="copyToClipboard(\`\${escapeHtml(n.content)}\`, event)" class="hover:text-brand-500 p-1" title="Copiar"><i class="fa-solid fa-copy"></i></button><button onclick="deleteNote('${n.id}', event)" class="hover:text-red-500 p-1" title="Eliminar"><i class="fa-solid fa-trash"></i></button></div></div></div>`).join('');
     }
     function renderPhotos() {
       const container = document.getElementById('photosContainer');
       if (!container) return;
       if (photos.length === 0) { container.innerHTML = `<p class="text-slate-500 text-sm py-4">No hay fotos guardadas.</p>`; return; }
-      container.innerHTML = photos.map(photo => `<div class="bg-slate-900 border border-slate-800 p-3.5 rounded-xl flex flex-col justify-between gap-3 shadow-sm h-56 w-[220px]"><div class="flex items-center justify-between text-[11px] text-slate-400"><span><i class="fa-solid fa-image text-brand-500 mr-1"></i> Foto</span><span>${photo.date.split(',')[0]}</span></div><div onclick="openMediaViewer('${photo.src}', 'photo', event)" class="relative group rounded-lg overflow-hidden border border-slate-800 bg-slate-950 h-28 cursor-pointer flex items-center justify-center"><img src="${photo.src}" class="w-full h-full object-cover"><div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><i class="fa-solid fa-magnifying-glass-plus text-lg text-white"></i></div></div><div class="flex items-center justify-between gap-2 pt-1"><a href="${photo.src}" download="boveda-foto.jpg" onclick="event.stopPropagation()" class="flex-1 text-[11px] text-brand-400 hover:text-brand-300 flex items-center justify-center gap-1 px-2 py-1.5 bg-brand-500/10 hover:bg-brand-500/20 rounded-lg transition"><i class="fa-solid fa-download"></i> Descargar</a><button onclick="deletePhoto(${photo.id}, event)" class="text-[11px] text-red-400 hover:text-red-300 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition"><i class="fa-solid fa-trash-can"></i> Eliminar</button></div></div>`).join('');
+      container.innerHTML = photos.map(photo => `<div class="bg-slate-900 border border-slate-800 p-3.5 rounded-xl flex flex-col justify-between gap-3 shadow-sm h-56 w-[220px]"><div class="flex items-center justify-between text-[11px] text-slate-400"><span><i class="fa-solid fa-image text-brand-500 mr-1"></i> Foto</span><span>${photo.date ? photo.date.split(',')[0] : ''}</span></div><div onclick="openMediaViewer('${photo.src}', 'photo', event)" class="relative group rounded-lg overflow-hidden border border-slate-800 bg-slate-950 h-28 cursor-pointer flex items-center justify-center"><img src="${photo.src}" class="w-full h-full object-cover"><div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><i class="fa-solid fa-magnifying-glass-plus text-lg text-white"></i></div></div><div class="flex items-center justify-between gap-2 pt-1"><a href="${photo.src}" download="boveda-foto.jpg" target="_blank" onclick="event.stopPropagation()" class="flex-1 text-[11px] text-brand-400 hover:text-brand-300 flex items-center justify-center gap-1 px-2 py-1.5 bg-brand-500/10 hover:bg-brand-500/20 rounded-lg transition"><i class="fa-solid fa-download"></i> Descargar</a><button onclick="deletePhoto('${photo.id}', event)" class="text-[11px] text-red-400 hover:text-red-300 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition"><i class="fa-solid fa-trash-can"></i> Eliminar</button></div></div>`).join('');
     }
     function renderVideos() {
       const container = document.getElementById('videosContainer');
       if (!container) return;
       if (videos.length === 0) { container.innerHTML = `<p class="text-slate-500 text-sm py-4">No hay videos guardados.</p>`; return; }
-      container.innerHTML = videos.map(video => `<div class="bg-slate-900 border border-slate-800 p-3.5 rounded-xl flex flex-col justify-between gap-3 shadow-sm h-56 w-[220px]"><div class="flex items-center justify-between text-[11px] text-slate-400"><span><i class="fa-solid fa-video text-brand-500 mr-1"></i> Video</span><span>${video.date.split(',')[0]}</span></div><div onclick="openMediaViewer('${video.src}', 'video', event)" class="relative group rounded-lg overflow-hidden border border-slate-800 bg-slate-950 h-28 cursor-pointer flex items-center justify-center"><video src="${video.src}" class="w-full h-full object-cover"></video><div class="absolute inset-0 flex items-center justify-center bg-black/40"><i class="fa-solid fa-play text-lg text-white"></i></div><div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><i class="fa-solid fa-magnifying-glass-plus text-lg text-white"></i></div></div><div class="flex items-center justify-between gap-2 pt-1"><a href="${video.src}" download="boveda-video.webm" onclick="event.stopPropagation()" class="flex-1 text-[11px] text-brand-400 hover:text-brand-300 flex items-center justify-center gap-1 px-2 py-1.5 bg-brand-500/10 hover:bg-brand-500/20 rounded-lg transition"><i class="fa-solid fa-download"></i> Descargar</a><button onclick="deleteVideo(${video.id}, event)" class="text-[11px] text-red-400 hover:text-red-300 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition"><i class="fa-solid fa-trash-can"></i> Eliminar</button></div></div>`).join('');
+      container.innerHTML = videos.map(video => `<div class="bg-slate-900 border border-slate-800 p-3.5 rounded-xl flex flex-col justify-between gap-3 shadow-sm h-56 w-[220px]"><div class="flex items-center justify-between text-[11px] text-slate-400"><span><i class="fa-solid fa-video text-brand-500 mr-1"></i> Video</span><span>${video.date ? video.date.split(',')[0] : ''}</span></div><div onclick="openMediaViewer('${video.src}', 'video', event)" class="relative group rounded-lg overflow-hidden border border-slate-800 bg-slate-950 h-28 cursor-pointer flex items-center justify-center"><video src="${video.src}" class="w-full h-full object-cover"></video><div class="absolute inset-0 flex items-center justify-center bg-black/40"><i class="fa-solid fa-play text-lg text-white"></i></div><div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><i class="fa-solid fa-magnifying-glass-plus text-lg text-white"></i></div></div><div class="flex items-center justify-between gap-2 pt-1"><a href="${video.src}" download="boveda-video.webm" target="_blank" onclick="event.stopPropagation()" class="flex-1 text-[11px] text-brand-400 hover:text-brand-300 flex items-center justify-center gap-1 px-2 py-1.5 bg-brand-500/10 hover:bg-brand-500/20 rounded-lg transition"><i class="fa-solid fa-download"></i> Descargar</a><button onclick="deleteVideo('${video.id}', event)" class="text-[11px] text-red-400 hover:text-red-300 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition"><i class="fa-solid fa-trash-can"></i> Eliminar</button></div></div>`).join('');
     }
     function renderAudios() {
       const container = document.getElementById('audiosContainer');
       if (!container) return;
       if (audios.length === 0) { container.innerHTML = `<p class="text-slate-500 text-sm py-4">No hay audios grabados aún.</p>`; return; }
-      container.innerHTML = audios.map(aud => `<div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col justify-between gap-3 shadow-sm h-36 w-[300px]"><div class="flex items-center justify-between text-xs text-slate-400"><span><i class="fa-solid fa-microphone-lines text-brand-500 mr-1"></i> Nota de voz</span><span>${aud.date}</span></div><audio controls src="${aud.src}" class="w-full h-8 accent-brand-500"></audio><div class="flex z-10 justify-end"><button onclick="deleteAudio(${aud.id})" class="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition"><i class="fa-solid fa-trash-can"></i> Eliminar</button></div></div>`).join('');
+      container.innerHTML = audios.map(aud => `<div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col justify-between gap-3 shadow-sm h-36 w-[300px]"><div class="flex items-center justify-between text-xs text-slate-400"><span><i class="fa-solid fa-microphone-lines text-brand-500 mr-1"></i> Nota de voz</span><span>${aud.date}</span></div><audio controls src="${aud.src}" class="w-full h-8 accent-brand-500"></audio><div class="flex z-10 justify-end"><button onclick="deleteAudio('${aud.id}')" class="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition"><i class="fa-solid fa-trash-can"></i> Eliminar</button></div></div>`).join('');
     }
     function escapeHtml(str) {
       if (!str) return '';
